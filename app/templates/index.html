@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block title %}首页 - 极米论坛{% endblock %}
+
+{% block content %}
+<div class="forum-container">
+    <h1>欢迎来到极米论坛</h1>
+    
+    <div class="section">
+        <h2>论坛分类</h2>
+        {% if categories %}
+            <div class="category-list">
+                {% for category in categories %}
+                    <div class="category-item">
+                        <h3><a href="{{ url_for('main.category', category_id=category.id) }}">{{ category.name }}</a></h3>
+                        <p>{{ category.description or '暂无描述' }}</p>
+                        <div class="category-stats">
+                            <span>主题数: {{ category.threads.count() }}</span>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="no-data">暂无分类，<a href="{{ url_for('main.new_category') }}">创建第一个分类</a></p>
+        {% endif %}
+    </div>
+    
+    <div class="section">
+        <h2>最新主题</h2>
+        {% if recent_threads %}
+            <div class="thread-list">
+                {% for thread in recent_threads %}
+                    <div class="thread-item">
+                        <div class="thread-info">
+                            <h3><a href="{{ url_for('main.thread', thread_id=thread.id) }}">{{ thread.title }}</a></h3>
+                            <div class="thread-meta">
+                                <span>作者: {{ thread.author.username }}</span>
+                                <span>分类: <a href="{{ url_for('main.category', category_id=thread.category.id) }}">{{ thread.category.name }}</a></span>
+                                <span>发布时间: {{ thread.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
+                                <span>回复数: {{ thread.posts.count() }}</span>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="no-data">暂无主题</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

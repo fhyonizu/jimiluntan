@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+
+{% block title %}{{ thread.title }} - 极米论坛{% endblock %}
+
+{% block content %}
+<div class="forum-container">
+    <div class="thread-header">
+        <h1>{{ thread.title }}</h1>
+        <div class="thread-meta">
+            <span>作者: {{ thread.author.username }}</span>
+            <span>分类: <a href="{{ url_for('main.category', category_id=thread.category.id) }}">{{ thread.category.name }}</a></span>
+            <span>发布时间: {{ thread.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
+        </div>
+    </div>
+    
+    <div class="post-list">
+        <!-- Original thread post -->
+        <div class="post-item main-post">
+            <div class="post-author">
+                <strong>{{ thread.author.username }}</strong>
+                <div class="post-date">{{ thread.created_at.strftime('%Y-%m-%d %H:%M') }}</div>
+            </div>
+            <div class="post-content">
+                {{ thread.content }}
+            </div>
+        </div>
+        
+        <!-- Replies -->
+        {% if posts.items %}
+            {% for post in posts.items %}
+                <div class="post-item">
+                    <div class="post-author">
+                        <strong>{{ post.author.username }}</strong>
+                        <div class="post-date">{{ post.created_at.strftime('%Y-%m-%d %H:%M') }}</div>
+                    </div>
+                    <div class="post-content">
+                        {{ post.content }}
+                    </div>
+                </div>
+            {% endfor %}
+            
+            <!-- Pagination -->
+            {% if posts.has_prev or posts.has_next %}
+                <div class="pagination">
+                    {% if posts.has_prev %}
+                        <a href="{{ url_for('main.thread', thread_id=thread.id, page=posts.prev_num) }}">« 上一页</a>
+                    {% endif %}
+                    <span>第 {{ posts.page }} / {{ posts.pages }} 页</span>
+                    {% if posts.has_next %}
+                        <a href="{{ url_for('main.thread', thread_id=thread.id, page=posts.next_num) }}">下一页 »</a>
+                    {% endif %}
+                </div>
+            {% endif %}
+        {% else %}
+            <p class="no-data">暂无回复</p>
+        {% endif %}
+    </div>
+    
+    <!-- Reply form -->
+    {% if current_user.is_authenticated %}
+        <div class="reply-form">
+            <h3>发表回复</h3>
+            <form method="POST">
+                {{ form.hidden_tag() }}
+                <div class="form-group">
+                    {{ form.content(class="form-control", rows=5) }}
+                    {% if form.content.errors %}
+                        <div class="error">
+                            {% for error in form.content.errors %}
+                                <span>{{ error }}</span>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+                <button type="submit" class="btn btn-primary">发表回复</button>
+            </form>
+        </div>
+    {% else %}
+        <p class="auth-prompt">请<a href="{{ url_for('auth.login') }}">登录</a>后发表回复</p>
+    {% endif %}
+</div>
+{% endblock %}
