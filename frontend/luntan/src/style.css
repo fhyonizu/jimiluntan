@@ -1,0 +1,50 @@
+@import "tailwindcss";
+
+/* 1) 现代 Reset：去默认外边距、统一盒模型、提升排版一致性 */
+*,
+*::before,
+*::after {
+  box-sizing: border-box; /* 统一盒模型，便于布局 */
+}
+
+html:focus-within {
+  scroll-behavior: smooth; /* 平滑滚动 */
+}
+
+html, body, #app {
+  height: 100%; /* 让布局可撑满视窗 */
+}
+
+body {
+  margin: 0; /* 默认距离0 */
+  padding: 0; /* 默认距离0 */
+
+}
+
+/* 图片、媒体默认响应式 */
+img, svg, video, canvas, audio, iframe, embed, object {
+  display: block;
+  max-width: 100%;
+}
+
+/* 表单元素继承字体 */
+input, button, textarea, select {
+  font: inherit;
+}
+
+
+
+/* 按钮基础 */
+
+/* 列表默认去除缩进 */
+ul, ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* 标题与段落默认去除外边距，由业务控制间距 */
+h1,h2,h3,h4,h5,h6,p {
+  margin: 0;
+}
+
