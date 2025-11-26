@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block title %}创建分类 - 极米论坛{% endblock %}
+
+{% block content %}
+<div class="forum-container">
+    <h1>创建新分类</h1>
+    
+    <form method="POST" class="category-form">
+        {{ form.hidden_tag() }}
+        
+        <div class="form-group">
+            {{ form.name.label }}
+            {{ form.name(class="form-control") }}
+            {% if form.name.errors %}
+                <div class="error">
+                    {% for error in form.name.errors %}
+                        <span>{{ error }}</span>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        </div>
+        
+        <div class="form-group">
+            {{ form.description.label }}
+            {{ form.description(class="form-control", rows=5) }}
+            {% if form.description.errors %}
+                <div class="error">
+                    {% for error in form.description.errors %}
+                        <span>{{ error }}</span>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        </div>
+        
+        <button type="submit" class="btn btn-primary">创建分类</button>
+        <a href="{{ url_for('main.index') }}" class="btn btn-secondary">取消</a>
+    </form>
+</div>
+{% endblock %}
