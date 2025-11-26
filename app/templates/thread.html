@@ -21,7 +21,7 @@
                 <div class="post-date">{{ thread.created_at.strftime('%Y-%m-%d %H:%M') }}</div>
             </div>
             <div class="post-content">
-                {{ thread.content }}
+                {{ thread.content|e }}
             </div>
         </div>
         
@@ -34,7 +34,7 @@
                         <div class="post-date">{{ post.created_at.strftime('%Y-%m-%d %H:%M') }}</div>
                     </div>
                     <div class="post-content">
-                        {{ post.content }}
+                        {{ post.content|e }}
                     </div>
                 </div>
             {% endfor %}

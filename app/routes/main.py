@@ -37,7 +37,8 @@ def thread(thread_id):
             thread_id=thread.id
         )
         db.session.add(post)
-        thread.updated_at = db.func.now()
+        from datetime import datetime
+        thread.updated_at = datetime.utcnow()
         db.session.commit()
         flash('回复成功！', 'success')
         return redirect(url_for('main.thread', thread_id=thread.id))
