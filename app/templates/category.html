@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block title %}{{ category.name }} - 极米论坛{% endblock %}
+
+{% block content %}
+<div class="forum-container">
+    <div class="category-header">
+        <h1>{{ category.name }}</h1>
+        <p>{{ category.description or '暂无描述' }}</p>
+    </div>
+    
+    <div class="section">
+        <h2>主题列表</h2>
+        {% if threads.items %}
+            <div class="thread-list">
+                {% for thread in threads.items %}
+                    <div class="thread-item">
+                        <div class="thread-info">
+                            <h3><a href="{{ url_for('main.thread', thread_id=thread.id) }}">{{ thread.title }}</a></h3>
+                            <div class="thread-meta">
+                                <span>作者: {{ thread.author.username }}</span>
+                                <span>发布时间: {{ thread.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
+                                <span>最后更新: {{ thread.updated_at.strftime('%Y-%m-%d %H:%M') }}</span>
+                                <span>回复数: {{ thread.posts.count() }}</span>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+            
+            <!-- Pagination -->
+            {% if threads.has_prev or threads.has_next %}
+                <div class="pagination">
+                    {% if threads.has_prev %}
+                        <a href="{{ url_for('main.category', category_id=category.id, page=threads.prev_num) }}">« 上一页</a>
+                    {% endif %}
+                    <span>第 {{ threads.page }} / {{ threads.pages }} 页</span>
+                    {% if threads.has_next %}
+                        <a href="{{ url_for('main.category', category_id=category.id, page=threads.next_num) }}">下一页 »</a>
+                    {% endif %}
+                </div>
+            {% endif %}
+        {% else %}
+            <p class="no-data">该分类下暂无主题</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
