@@ -157,7 +157,7 @@
               </div>
             </div>
             
-            <div class="text-center text-slate-400 text-xs py-8">已经到底啦，快来发表神评吧 ~ 🐱</div>
+            <div class="text-center text-slate-400 text-xs py-8">— 已显示全部评论 —</div>
           </div>
         </div>
 
@@ -251,7 +251,7 @@
                <div v-if="loadingGifs" class="absolute inset-0 flex items-center justify-center text-purple-400">
                  <span class="animate-spin text-2xl">⏳</span>
                </div>
-               <div v-else-if="gifs.length === 0" class="col-span-2 text-center text-slate-400 py-10 text-xs">没有找到表情包喵 ~</div>
+               <div v-else-if="gifs.length === 0" class="col-span-2 text-center text-slate-400 py-10 text-xs">暂无表情</div>
                <img v-for="gif in gifs" :key="gif.id" :src="gif.images.fixed_height_small.url" 
                     @click="insertGif(gif)"
                     class="w-full h-24 object-cover rounded-lg cursor-pointer hover:opacity-80 hover:scale-105 transition-all shadow-sm border border-slate-100 bg-slate-200">

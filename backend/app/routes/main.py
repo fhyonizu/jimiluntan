@@ -3,6 +3,7 @@ import uuid
 from flask import Blueprint, jsonify, request, current_app
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from ..models import Post, User, Category
+from ..extensions import cache
 from datetime import datetime, timedelta, timezone
 
 main_bp = Blueprint('main', __name__)
@@ -89,19 +90,19 @@ def upload_file():
 
 
 # ==========================================
-# 2. 全站统计数据 (罐头/投喂/在线)
+# 2. 全站统计数据
 # ==========================================
 @main_bp.route('/stats', methods=['GET'])
+@cache.cached(timeout=30, query_string=True)
 def get_site_stats():
-    # 1. 罐头储存 (总帖子数)
+    # 1. 总帖子数
     total_posts = Post.query.count()
 
-    # 2. 今日投喂 (今日发布数)
+    # 2. 今日发布数
     today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
     today_posts = Post.query.filter(Post.timestamp >= today_start).count()
 
-    # 3. 在线猫猫 (在线人数)
-    # 修改为：过去 5 分钟内有过活动的用户 (更实时)
+    # 3. 在线用户数 (5分钟内活跃)
     active_threshold = datetime.now(timezone.utc) - timedelta(minutes=5)
     online_users = User.query.filter(User.last_seen >= active_threshold).count()
 
@@ -123,6 +124,7 @@ def get_site_stats():
 # 3. 管理员通知 (获取“公告栏”分区的帖子)
 # ==========================================
 @main_bp.route('/notices', methods=['GET'])
+@cache.cached(timeout=60, query_string=True)
 def get_notices():
     notice_cat = Category.query.filter_by(name='公告栏').first()
 
@@ -229,9 +231,3 @@ def proxy_gifs():
     result = FREE_GIFS.copy()
     rng.shuffle(result)
     return jsonify({'code': 200, 'data': result[:limit], 'source': 'builtin'}), 200
-@main_bp.route('/promotions', methods=['GET'])
-def promotions():
-    return jsonify({'code': 200, 'data': [
-        {'id': 1, 'title': '🔥 哈基米大促', 'link': '/vip'},
-        {'id': 2, 'title': '📢 社区指南', 'link': '/about'}
-    ]}), 200

@@ -10,9 +10,9 @@
       <div class="flex justify-between items-center mb-6">
         <router-link to="/" class="flex items-center text-slate-500 hover:text-purple-600 font-bold transition-colors group">
           <span class="mr-2 text-xl group-hover:-translate-x-1 transition-transform">🐾</span> 
-          放弃发帖
+          返回首页
         </router-link>
-        <h1 class="text-2xl font-extrabold text-slate-800">{{ isEditMode ? '编辑罐头' : '发布新罐头' }} 🥫</h1>
+        <h1 class="text-2xl font-extrabold text-slate-800">{{ isEditMode ? '编辑帖子' : '发布新帖' }}</h1>
       </div>
 
       <!-- 核心区域：左右分栏 -->
@@ -49,7 +49,7 @@
 
               <!-- GIF 按钮 -->
               <div class="relative">
-                <button @click="showGif = !showGif" :class="btnClass + ' text-lg'" title="哈基米GIF">🐱</button>
+                <button @click="showGif = !showGif" :class="btnClass + ' text-lg'" title="GIF">🐱</button>
                 <div v-if="showGif" class="absolute top-10 left-0 z-50 w-64 bg-white/90 backdrop-blur-xl shadow-2xl rounded-xl p-3 border border-white/50">
                   <div class="fixed inset-0 z-40" @click="showGif = false"></div>
                   <div class="grid grid-cols-3 gap-2">
@@ -222,7 +222,7 @@ const insertFormat = (prefix, suffix) => {
   }, 0)
 }
 const onSelectEmoji = (emoji) => { insertFormat(emoji.i, ''); showEmoji.value = false }
-const insertImage = (url) => { insertFormat(`\n![哈基米](${url})\n`, ''); showGif.value = false }
+const insertImage = (url) => { insertFormat(`\n![GIF](${url})\n`, ''); showGif.value = false }
 const addTag = () => { const val = tagInput.value.trim(); if (val && !form.tags.includes(val) && form.tags.length < 5) form.tags.push(val); tagInput.value = '' }
 const removeTag = (i) => form.tags.splice(i, 1)
 

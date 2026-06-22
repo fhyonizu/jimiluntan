@@ -59,7 +59,7 @@ const router = createRouter({
 router.beforeEach((to, from, next) => {
     const auth = useAuthStore()
     if (to.meta.requiresAdmin && !auth.isAdmin) {
-        alert('🚫 喵喵喵？这是禁地！')
+        alert('权限不足，仅管理员可访问')
         next('/') 
         return
     }

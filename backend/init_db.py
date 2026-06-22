@@ -25,9 +25,9 @@ with app.app_context():
     # 1. 创建初始分区
     print("正在创建分区...")
     categories = [
-        {'name': '前端猫窝', 'icon': '🎨'},
-        {'name': '后端爬架', 'icon': '⚡'},
-        {'name': '摸鱼广场', 'icon': '🐟'},
+        {'name': '前端开发', 'icon': '🎨'},
+        {'name': '后端开发', 'icon': '⚡'},
+        {'name': '闲聊广场', 'icon': '💬'},
         {'name': '公告栏', 'icon': '📢'},
     ]
     for c in categories:

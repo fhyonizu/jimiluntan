@@ -1,17 +1,17 @@
 from flask import Blueprint, request, jsonify
-from ..extensions import db
+from ..extensions import db, limiter
 from ..models import User
-from flask_jwt_extended import create_access_token
+from flask_jwt_extended import create_access_token, decode_token
 from datetime import timedelta
 import re
 
 auth_bp = Blueprint('auth', __name__)
 
-# 邮箱正则
 EMAIL_REGEX = re.compile(r'^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$')
 
 
 @auth_bp.route('/register', methods=['POST'])
+@limiter.limit("5 per minute")
 def register():
     data = request.get_json()
     email = (data.get('email') or '').strip()
@@ -46,6 +46,7 @@ def register():
 
 
 @auth_bp.route('/login', methods=['POST'])
+@limiter.limit("10 per minute")
 def login():
     data = request.get_json()
     email = (data.get('email') or '').strip()

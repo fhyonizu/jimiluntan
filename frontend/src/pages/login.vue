@@ -19,7 +19,7 @@
             {{ mode === 'login' ? '欢迎回来 👋' : '加入我们 🚀' }}
           </h1>
           <p class="text-slate-500 text-sm font-medium mb-6">
-            {{ mode === 'login' ? '登录你的哈基米账号' : '开启你的二次元技术之旅' }}
+            {{ mode === 'login' ? '登录账号' : '注册新账号' }}
           </p>
 
           <!-- 切换开关 -->

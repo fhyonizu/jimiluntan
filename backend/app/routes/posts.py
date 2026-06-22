@@ -1,6 +1,7 @@
 from flask import Blueprint, request, jsonify
 from ..extensions import db
 from ..models import Post, User, Category, Comment
+from ..extensions import cache
 from flask_jwt_extended import jwt_required, get_jwt_identity
 
 posts_bp = Blueprint('posts', __name__)
@@ -40,7 +41,7 @@ def get_posts():
 @posts_bp.route('/<int:post_id>', methods=['GET'])
 def get_post_detail(post_id):
     post = Post.query.get(post_id)
-    if not post: return jsonify({'code': 404, 'message': '帖子找不到了喵~'}), 404
+    if not post: return jsonify({'code': 404, 'message': '帖子不存在'}), 404
     post.views += 1
     db.session.commit()
     comments = Comment.query.filter_by(post_id=post_id).order_by(Comment.timestamp.asc()).all()
@@ -270,7 +271,7 @@ def create_post():
     category = Category.query.get(category_id)
     if category and category.name == '公告栏':
         if user.role != 'admin':
-            return jsonify({'code': 403, 'message': '大胆！只有猫神（管理员）才能发布公告！'}), 403
+            return jsonify({'code': 403, 'message': '仅管理员可发布公告'}), 403
 
     tags = data.get('tags')
     # 确保 tags 是列表
@@ -296,6 +297,7 @@ def create_post():
         return jsonify({'code': 500, 'message': str(e)}), 500
 
 @posts_bp.route('/categories', methods=['GET'])
+@cache.cached(timeout=120)
 def get_categories():
     cats = Category.query.all()
     return jsonify({

@@ -21,7 +21,7 @@
           <div class="flex flex-col md:flex-row justify-between gap-8 items-center relative z-10">
             <div class="text-center md:text-left">
               <div class="inline-block px-4 py-1.5 rounded-full bg-white/60 text-pink-500 text-sm font-bold mb-4 shadow-sm border border-white/50 backdrop-blur-sm animate-bounce-slow">
-                🐾 欢迎来到哈基米星球
+                🐾 欢迎来到基米论坛
               </div>
               <h1 class="text-5xl md:text-6xl font-extrabold text-slate-800 mb-4 tracking-tight drop-shadow-sm">
                 基米<span class="text-transparent bg-clip-text bg-gradient-to-r from-purple-500 to-pink-500">论坛</span> 🐱
@@ -33,11 +33,11 @@
               <div class="flex gap-4 justify-center md:justify-start">
                 <button @click="goNewPost"
                   class="px-8 py-3.5 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-bold rounded-full shadow-lg shadow-purple-500/30 hover:shadow-purple-500/50 transition-all duration-300 transform hover:-translate-y-1 active:scale-95 flex items-center gap-2">
-                  <span>🐟</span> 开个罐头 (发帖)
+                  <span>🐟</span> 发布新帖
                 </button>
                 <button v-if="!auth.isLoggedIn" @click="goLogin"
                   class="px-8 py-3.5 bg-white/80 text-slate-700 font-bold rounded-full shadow-md border border-white/60 hover:bg-white transition-all duration-300 transform hover:-translate-y-1 active:scale-95">
-                  加入猫窝
+                  登录 / 注册
                 </button>
               </div>
               
@@ -75,7 +75,7 @@
           <div class="sticky top-24">
             <div class="bg-white/40 backdrop-blur-xl shadow-lg rounded-3xl p-6 border border-white/50 shadow-purple-100/50">
               <h2 class="text-lg font-bold text-slate-700 mb-4 px-2 flex items-center gap-2">
-                🧶 领地巡逻
+                🧶 版块导航
               </h2>
               <ul class="space-y-3">
                 <li v-for="cat in categories" :key="cat.id" @click="switchCategory(cat.id)"
@@ -118,8 +118,8 @@
               <transition enter-active-class="transition duration-200 ease-out" enter-from-class="transform scale-95 opacity-0 translate-y-2" enter-to-class="transform scale-100 opacity-100 translate-y-0" leave-active-class="transition duration-150 ease-in" leave-from-class="transform scale-100 opacity-100 translate-y-0" leave-to-class="transform scale-95 opacity-0 translate-y-2">
                 <div v-if="isSortDropdownOpen" class="absolute right-0 top-full mt-2 w-40 bg-white/90 backdrop-blur-xl rounded-2xl shadow-xl border border-white/60 overflow-hidden z-50 origin-top-right p-1">
                   <ul class="text-sm font-bold text-slate-600">
-                    <li @click="selectSort('latest')" class="px-4 py-2.5 rounded-xl cursor-pointer flex items-center gap-2 transition-colors" :class="sortBy === 'latest' ? 'bg-purple-100 text-purple-600' : 'hover:bg-purple-50 hover:text-purple-500'"><span>🌿</span> 新鲜猫薄荷</li>
-                    <li @click="selectSort('hot')" class="px-4 py-2.5 rounded-xl cursor-pointer flex items-center gap-2 transition-colors" :class="sortBy === 'hot' ? 'bg-orange-100 text-orange-600' : 'hover:bg-orange-50 hover:text-orange-500'"><span>🥫</span> 热门猫罐头</li>
+                    <li @click="selectSort('latest')" class="px-4 py-2.5 rounded-xl cursor-pointer flex items-center gap-2 transition-colors" :class="sortBy === 'latest' ? 'bg-purple-100 text-purple-600' : 'hover:bg-purple-50 hover:text-purple-500'"><span>🕐</span> 最新发布</li>
+                    <li @click="selectSort('hot')" class="px-4 py-2.5 rounded-xl cursor-pointer flex items-center gap-2 transition-colors" :class="sortBy === 'hot' ? 'bg-orange-100 text-orange-600' : 'hover:bg-orange-50 hover:text-orange-500'"><span>🔥</span> 热门帖子</li>
                   </ul>
                 </div>
               </transition>
@@ -137,8 +137,8 @@
             <!-- 空状态 -->
             <div v-if="!firstLoading && threads.length === 0" class="bg-white/40 backdrop-blur-xl shadow-lg rounded-3xl p-12 text-center">
               <div class="text-6xl mb-4 animate-bounce">😿</div>
-              <p class="text-slate-500 font-medium">哎呀，这个分区连根猫毛都没有~</p>
-              <button @click="goNewPost" class="mt-4 text-purple-600 font-bold hover:underline">要不你来发第一贴？</button>
+              <p class="text-slate-500 font-medium">这个版块还没有帖子</p>
+              <button @click="goNewPost" class="mt-4 text-purple-600 font-bold hover:underline">发第一个帖子</button>
             </div>
 
             <!-- 帖子渲染 -->
@@ -175,13 +175,13 @@
             <!-- 底部加载更多骨架屏 -->
             <div v-if="isLoadingMore" class="space-y-4 pt-2">
                <div v-for="i in 2" :key="'more-skeleton-'+i" class="bg-white/40 h-28 rounded-3xl animate-pulse border border-white/30 flex items-center justify-center text-slate-400 text-sm font-bold">
-                  正在搬运更多罐头... 🐟
+                  正在加载更多...
                </div>
             </div>
 
             <!-- 到底了 -->
             <div v-if="!hasMore && threads.length > 0" class="text-center py-8 text-slate-400 text-xs font-bold">
-               — 已经到底啦，喵呜 —
+               — 已经到底了 —
             </div>
 
             <!-- 哨兵元素 -->
@@ -219,7 +219,7 @@
                 <div class="text-sm font-bold text-slate-700 line-clamp-1">{{ notice.title }}</div>
               </li>
             </ul>
-            <div v-else class="text-xs text-slate-400 text-center py-4">暂无公告喵~</div>
+            <div v-else class="text-xs text-slate-400 text-center py-4">暂无公告</div>
           </div>
         </aside>
 
@@ -427,11 +427,11 @@ const currentCategoryName = computed(() => {
   return found ? found.name : '全区动态'
 })
 
-const currentSortLabel = computed(() => sortBy.value === 'latest' ? '🌿 新鲜猫薄荷' : '🥫 热门猫罐头')
+const currentSortLabel = computed(() => sortBy.value === 'latest' ? '🕐 最新发布' : '🔥 热门帖子')
 const statsList = computed(() => [
-  { label: '罐头储存', value: siteStats.value.total_posts, icon: '🥫' },
-  { label: '今日投喂', value: siteStats.value.today_posts, icon: '🐟' },
-  { label: '在线猫猫', value: siteStats.value.online_users, icon: '😺' },
+  { label: '总帖子', value: siteStats.value.total_posts, icon: '📝' },
+  { label: '今日发布', value: siteStats.value.today_posts, icon: '📅' },
+  { label: '在线用户', value: siteStats.value.online_users, icon: '🟢' },
 ])
 
 const selectSort = (type) => { sortBy.value = type; isSortDropdownOpen.value = false }
