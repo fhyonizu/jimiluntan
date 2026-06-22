@@ -146,26 +146,89 @@ def get_notices():
 
 
 # ==========================================
-# 5. Giphy 代理 (隐藏 API 密钥)
+# 5. GIF 搜索代理 (多源: Giphy / Tenor / 免费内置)
 # ==========================================
+import requests
+
 GIPHY_API_KEY = os.environ.get('GIPHY_API_KEY')
+TENOR_API_KEY = os.environ.get('TENOR_API_KEY')  # 免费申请: https://tenor.com/developer
+
+# 内置免费表情包 (无需任何 API Key)
+FREE_GIFS = [
+    {"id": "free_001", "images": {"fixed_height_small": {"url": "https://media.giphy.com/media/JIX9t2j0ZTN9S/200w.gif"}, "fixed_height": {"url": "https://media.giphy.com/media/JIX9t2j0ZTN9S/giphy.gif"}}},
+    {"id": "free_002", "images": {"fixed_height_small": {"url": "https://media.giphy.com/media/8Iv5lqKwKsZ2g/200w.gif"}, "fixed_height": {"url": "https://media.giphy.com/media/8Iv5lqKwKsZ2g/giphy.gif"}}},
+    {"id": "free_003", "images": {"fixed_height_small": {"url": "https://media.giphy.com/media/mlvseq9yvZhba/200w.gif"}, "fixed_height": {"url": "https://media.giphy.com/media/mlvseq9yvZhba/giphy.gif"}}},
+    {"id": "free_004", "images": {"fixed_height_small": {"url": "https://media.giphy.com/media/13CoXDiaCcCoyk/200w.gif"}, "fixed_height": {"url": "https://media.giphy.com/media/13CoXDiaCcCoyk/giphy.gif"}}},
+    {"id": "free_005", "images": {"fixed_height_small": {"url": "https://media.giphy.com/media/GeimqsH0TLDt4tScGw/200w.gif"}, "fixed_height": {"url": "https://media.giphy.com/media/GeimqsH0TLDt4tScGw/giphy.gif"}}},
+    {"id": "free_006", "images": {"fixed_height_small": {"url": "https://media.giphy.com/media/3o7TKSjRrfIPjeiVyM/200w.gif"}, "fixed_height": {"url": "https://media.giphy.com/media/3o7TKSjRrfIPjeiVyM/giphy.gif"}}},
+    {"id": "free_007", "images": {"fixed_height_small": {"url": "https://media.giphy.com/media/l0HlNQ03J5JxX6lva/200w.gif"}, "fixed_height": {"url": "https://media.giphy.com/media/l0HlNQ03J5JxX6lva/giphy.gif"}}},
+    {"id": "free_008", "images": {"fixed_height_small": {"url": "https://media.giphy.com/media/26ufdipQqU2lhNA4g/200w.gif"}, "fixed_height": {"url": "https://media.giphy.com/media/26ufdipQqU2lhNA4g/giphy.gif"}}},
+    {"id": "free_009", "images": {"fixed_height_small": {"url": "https://media.giphy.com/media/xT0GqssRweIlyz3i4E/200w.gif"}, "fixed_height": {"url": "https://media.giphy.com/media/xT0GqssRweIlyz3i4E/giphy.gif"}}},
+    {"id": "free_010", "images": {"fixed_height_small": {"url": "https://media.giphy.com/media/3orieLHrJOlQHcMvIs/200w.gif"}, "fixed_height": {"url": "https://media.giphy.com/media/3orieLHrJOlQHcMvIs/giphy.gif"}}},
+    {"id": "free_011", "images": {"fixed_height_small": {"url": "https://media.giphy.com/media/3o7TKuY6Z8FkPQMh7i/200w.gif"}, "fixed_height": {"url": "https://media.giphy.com/media/3o7TKuY6Z8FkPQMh7i/giphy.gif"}}},
+    {"id": "free_012", "images": {"fixed_height_small": {"url": "https://media.giphy.com/media/XbOkpDQ2dx8GL80JMI/200w.gif"}, "fixed_height": {"url": "https://media.giphy.com/media/XbOkpDQ2dx8GL80JMI/giphy.gif"}}},
+    {"id": "free_013", "images": {"fixed_height_small": {"url": "https://media.giphy.com/media/11sBLVxNs7v6WA/200w.gif"}, "fixed_height": {"url": "https://media.giphy.com/media/11sBLVxNs7v6WA/giphy.gif"}}},
+    {"id": "free_014", "images": {"fixed_height_small": {"url": "https://media.giphy.com/media/3o7bu3XilJ5BOiSGic/200w.gif"}, "fixed_height": {"url": "https://media.giphy.com/media/3o7bu3XilJ5BOiSGic/giphy.gif"}}},
+    {"id": "free_015", "images": {"fixed_height_small": {"url": "https://media.giphy.com/media/5VKbvrjxpVJCM/200w.gif"}, "fixed_height": {"url": "https://media.giphy.com/media/5VKbvrjxpVJCM/giphy.gif"}}},
+    {"id": "free_016", "images": {"fixed_height_small": {"url": "https://media.giphy.com/media/3o7TKMt1VVNkHV2PaE/200w.gif"}, "fixed_height": {"url": "https://media.giphy.com/media/3o7TKMt1VVNkHV2PaE/giphy.gif"}}},
+    {"id": "free_017", "images": {"fixed_height_small": {"url": "https://media.giphy.com/media/kaq6Gnx1cf4IM/giphy.gif"}, "fixed_height": {"url": "https://media.giphy.com/media/kaq6Gnx1cf4IM/giphy.gif"}}},
+    {"id": "free_018", "images": {"fixed_height_small": {"url": "https://media.giphy.com/media/dkGhBWE3SyzXW/200w.gif"}, "fixed_height": {"url": "https://media.giphy.com/media/dkGhBWE3SyzXW/giphy.gif"}}},
+    {"id": "free_019", "images": {"fixed_height_small": {"url": "https://media.giphy.com/media/l3q2K5jinAlChoCLS/200w.gif"}, "fixed_height": {"url": "https://media.giphy.com/media/l3q2K5jinAlChoCLS/giphy.gif"}}},
+    {"id": "free_020", "images": {"fixed_height_small": {"url": "https://media.giphy.com/media/xT9DPldJHzZKtORo2A/200w.gif"}, "fixed_height": {"url": "https://media.giphy.com/media/xT9DPldJHzZKtORo2A/giphy.gif"}}},
+]
 
 @main_bp.route('/gifs', methods=['GET'])
 def proxy_gifs():
-    import requests
-    if not GIPHY_API_KEY:
-        return jsonify({'code': 500, 'message': 'Giphy 服务未配置'}), 200
-    query = request.args.get('q', 'reaction')
-    limit = request.args.get('limit', 20)
-    try:
-        resp = requests.get(
-            'https://api.giphy.com/v1/gifs/search',
-            params={'api_key': GIPHY_API_KEY, 'q': query, 'limit': limit, 'rating': 'g'},
-            timeout=5
-        )
-        return jsonify({'code': 200, 'data': resp.json().get('data', [])}), 200
-    except Exception as e:
-        return jsonify({'code': 500, 'message': 'Giphy 服务不可用'}), 200
+    query = (request.args.get('q', 'reaction') or '').strip()
+    limit = request.args.get('limit', 20, type=int)
+
+    # 1. 优先 Giphy (如果有 Key)
+    if GIPHY_API_KEY:
+        try:
+            resp = requests.get(
+                'https://api.giphy.com/v1/gifs/search',
+                params={'api_key': GIPHY_API_KEY, 'q': query, 'limit': limit, 'rating': 'g'},
+                timeout=5
+            )
+            if resp.status_code == 200:
+                data = resp.json().get('data', [])
+                if data:
+                    return jsonify({'code': 200, 'data': data, 'source': 'giphy'}), 200
+        except Exception:
+            pass
+
+    # 2. 尝试 Tenor (免费 API, 每天 10,000 次)
+    if TENOR_API_KEY:
+        try:
+            resp = requests.get(
+                'https://tenor.googleapis.com/v2/search',
+                params={'key': TENOR_API_KEY, 'q': query, 'limit': limit, 'media_filter': 'gif,tinygif'},
+                timeout=5
+            )
+            if resp.status_code == 200:
+                results = resp.json().get('results', [])
+                data = []
+                for r in results:
+                    media = r.get('media_formats', {}).get('gif', {})
+                    tiny = r.get('media_formats', {}).get('tinygif', {})
+                    data.append({
+                        'id': r.get('id'),
+                        'images': {
+                            'fixed_height_small': {'url': tiny.get('url', media.get('url', ''))},
+                            'fixed_height': {'url': media.get('url', '')}
+                        }
+                    })
+                if data:
+                    return jsonify({'code': 200, 'data': data, 'source': 'tenor'}), 200
+        except Exception:
+            pass
+
+    # 3. 兜底: 内置免费表情包 (按 query 简单筛选)
+    import random
+    rng = random.Random(query if query else 'cat')
+    result = FREE_GIFS.copy()
+    rng.shuffle(result)
+    return jsonify({'code': 200, 'data': result[:limit], 'source': 'builtin'}), 200
 @main_bp.route('/promotions', methods=['GET'])
 def promotions():
     return jsonify({'code': 200, 'data': [

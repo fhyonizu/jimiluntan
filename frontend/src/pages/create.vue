@@ -159,7 +159,20 @@ const router = useRouter(); const route = useRoute(); const message = ref(); con
 const auth = useAuthStore() // 2. 使用 Store
 
 const btnClass = "px-2 py-1 rounded hover:bg-purple-100 text-slate-600 font-bold transition-colors text-sm"
-const catGifs = ['https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExMDQyZnJ6Y2o5YnJ6Y2o5YnJ6Y2o5YnJ6Y2o5YnJ6Y2o5eiZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/GeimqsH0TLDt4tScGw/giphy.gif', 'https://media.giphy.com/media/JIX9t2j0ZTN9S/giphy.gif', 'https://media.giphy.com/media/MDJ9IbxxvDUQM/giphy.gif', 'https://media.giphy.com/media/mlvseq9yvZhba/giphy.gif', 'https://media.giphy.com/media/VbnUQpnihPSIgIXuZv/giphy.gif', 'https://media.giphy.com/media/13CoXDiaCcCoyk/giphy.gif']
+const catGifs = [
+  'https://media.giphy.com/media/JIX9t2j0ZTN9S/giphy.gif',
+  'https://media.giphy.com/media/8Iv5lqKwKsZ2g/giphy.gif',
+  'https://media.giphy.com/media/mlvseq9yvZhba/giphy.gif',
+  'https://media.giphy.com/media/13CoXDiaCcCoyk/giphy.gif',
+  'https://media.giphy.com/media/GeimqsH0TLDt4tScGw/giphy.gif',
+  'https://media.giphy.com/media/MDJ9IbxxvDUQM/giphy.gif',
+  'https://media.giphy.com/media/VbnUQpnihPSIgIXuZv/giphy.gif',
+  'https://media.giphy.com/media/3o7TKSjRrfIPjeiVyM/giphy.gif',
+  'https://media.giphy.com/media/3orieLHrJOlQHcMvIs/giphy.gif',
+  'https://media.giphy.com/media/11sBLVxNs7v6WA/giphy.gif',
+  'https://media.giphy.com/media/5VKbvrjxpVJCM/giphy.gif',
+  'https://media.giphy.com/media/dkGhBWE3SyzXW/giphy.gif',
+]
 const categories = ref([]); const tagInput = ref(''); const categoriesLoading = ref(true)
 const form = reactive({ title: '', body: '', category_id: null, tags: [] })
 const isEditMode = computed(() => !!route.query.edit)
