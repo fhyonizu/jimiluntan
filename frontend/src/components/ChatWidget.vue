@@ -233,8 +233,8 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.animate-pop-in { animation: popIn 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
-@keyframes popIn { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+.animate-pop-in { animation: popIn 350ms var(--ease-spring) both; }
+@keyframes popIn { from { transform: scale(0.85); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 .custom-scroll::-webkit-scrollbar { width: 4px; }
 .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
 .custom-scroll::-webkit-scrollbar-track { background: transparent; }

@@ -143,8 +143,9 @@
 
             <!-- 帖子渲染 -->
             <article v-for="(thread, idx) in threads" :key="thread.id" @click="router.push('/post/' + thread.id)"
-              class="bg-white/40 backdrop-blur-xl shadow-lg rounded-3xl p-5 md:p-6 hover:bg-white transition-all duration-300 transform hover:-translate-y-1.5 hover:shadow-xl hover:shadow-purple-100 cursor-pointer group border border-white/60"
-              :style="{ animation: `slideInUp 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) ${idx * 50}ms both` }">
+              class="bg-white/40 backdrop-blur-xl shadow-lg rounded-3xl p-5 md:p-6 hover:bg-white apple-card cursor-pointer group border border-white/60"
+              :style="{ animation: `springReveal 500ms var(--ease-spring-light) ${idx * 60}ms both` }"
+              :class="{ 'spring-item': !firstLoading, 'visible': !firstLoading }">
               
               <div class="flex items-start gap-4">
                 <!-- 🔥 更新后的头像显示逻辑 -->
@@ -445,9 +446,9 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-@keyframes blob { 0% { transform: translate(0px, 0px) scale(1); } 33% { transform: translate(30px, -50px) scale(1.1); } 66% { transform: translate(-20px, 20px) scale(0.9); } 100% { transform: translate(0px, 0px) scale(1); } }
-.animate-blob { animation: blob 7s infinite; }
-.animate-bounce-slow { animation: bounce-slow 3s infinite ease-in-out; }
+@keyframes blob { 0% { transform: translate(0px, 0px) scale(1); } 33% { transform: translate(30px, -50px) scale(1.05); } 66% { transform: translate(-20px, 20px) scale(0.97); } 100% { transform: translate(0px, 0px) scale(1); } }
+.animate-blob { animation: blob 20s infinite var(--ease-smooth); }
+.animate-bounce-slow { animation: bounce-slow 3s infinite var(--ease-smooth); }
 @keyframes bounce-slow { 0%, 100% { transform: translateY(-3px); } 50% { transform: translateY(3px); } }
-@keyframes slideInUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+/* springReveal 定义在全局 style.css 中 */
 </style>

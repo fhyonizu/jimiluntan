@@ -1,7 +1,7 @@
 <template>
-  <transition name="fade">
+  <transition name="modal">
     <div v-if="visible" class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm" @click.self="close">
-      <div class="bg-white rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl animate-pop">
+      <div class="bg-white rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl">
         
         <div class="h-24 bg-gradient-to-r from-purple-400 to-pink-400 relative">
           <button @click="close" class="absolute top-2 right-2 text-white/80 hover:text-white bg-black/20 rounded-full p-1">✕</button>

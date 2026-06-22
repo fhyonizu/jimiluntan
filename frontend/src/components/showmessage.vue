@@ -48,12 +48,12 @@ defineExpose({ showMessage })
 /* 弹跳动画效果 */
 .toast-enter-active,
 .toast-leave-active {
-  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  transition: all 400ms var(--ease-spring);
 }
 
 .toast-enter-from,
 .toast-leave-to {
   opacity: 0;
-  transform: translate(-50%, -20px) scale(0.9);
+  transform: translate(-50%, -16px) scale(0.9);
 }
 </style>

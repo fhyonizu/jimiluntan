@@ -660,11 +660,11 @@ onUnmounted(() => clearInterval(progressInterval))
 .custom-scroll::-webkit-scrollbar { width: 6px; }
 .custom-scroll::-webkit-scrollbar-track { background: transparent; }
 .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
-.animate-fade-in { animation: fadeIn 0.5s ease-out; }
-@keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-@keyframes blob { 0% { transform: translate(0px, 0px) scale(1); } 33% { transform: translate(30px, -50px) scale(1.1); } 66% { transform: translate(-20px, 20px) scale(0.9); } 100% { transform: translate(0px, 0px) scale(1); } }
-.animate-blob { animation: blob 7s infinite; }
+.animate-fade-in { animation: fadeIn 400ms var(--ease-apple) both; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(16px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@keyframes blob { 0% { transform: translate(0px, 0px) scale(1); } 33% { transform: translate(30px, -50px) scale(1.05); } 66% { transform: translate(-20px, 20px) scale(0.97); } 100% { transform: translate(0px, 0px) scale(1); } }
+.animate-blob { animation: blob 20s infinite var(--ease-smooth); }
 /* Pop-up 动画 */
-.pop-up-enter-active, .pop-up-leave-active { transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
-.pop-up-enter-from, .pop-up-leave-to { opacity: 0; transform: translateY(20px) scale(0.95); }
+.pop-up-enter-active, .pop-up-leave-active { transition: all 350ms var(--ease-spring); }
+.pop-up-enter-from, .pop-up-leave-to { opacity: 0; transform: translateY(16px) scale(0.92); }
 </style>

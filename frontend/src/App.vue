@@ -1,15 +1,13 @@
 <template>
-  <!-- 路由视图 -->
-  <router-view v-slot="{ Component }">
-    <component :is="Component" />
+  <!-- 路由视图 + Apple-Style 页面过渡 -->
+  <router-view v-slot="{ Component, route }">
+    <transition name="page" mode="out-in">
+      <component :is="Component" :key="route.path" />
+    </transition>
   </router-view>
   
   <!-- 全局挂载组件 -->
-  <!-- 1. 用户资料弹窗 -->
   <UserProfileModal ref="profileModal" @chat="handleChat" />
-  
-  <!-- 2. 🔥 悬浮聊天球/窗口 (只有登录才显示) -->
-  <!-- 注意：这里引用的是 ChatWidget，不是 ChatWindow -->
   <ChatWidget v-if="authStore.isLoggedIn" ref="chatWidget" />
 </template>
 

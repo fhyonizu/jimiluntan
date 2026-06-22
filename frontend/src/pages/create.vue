@@ -252,8 +252,8 @@ const handleSubmit = () => {
 
 <style scoped>
 /* 标签弹出动画 */
-@keyframes pop { 0% { transform: scale(0.8); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
-.animate-pop { animation: pop 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+@keyframes pop { 0% { transform: scale(0.85); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+.animate-pop { animation: pop 300ms var(--ease-spring) both; }
 
 /* Markdown 样式 */
 .markdown-body :deep(p) { margin-bottom: 0.5em; color: #475569; line-height: 1.6; }
@@ -267,6 +267,6 @@ const handleSubmit = () => {
 .custom-scroll::-webkit-scrollbar-thumb:hover { background: rgba(139, 92, 246, 0.4); }
 
 /* 动画 */
-@keyframes blob { 0% { transform: translate(0px, 0px) scale(1); } 33% { transform: translate(30px, -50px) scale(1.1); } 66% { transform: translate(-20px, 20px) scale(0.9); } 100% { transform: translate(0px, 0px) scale(1); } }
-.animate-blob { animation: blob 7s infinite; }
+@keyframes blob { 0% { transform: translate(0px, 0px) scale(1); } 33% { transform: translate(30px, -50px) scale(1.05); } 66% { transform: translate(-20px, 20px) scale(0.97); } 100% { transform: translate(0px, 0px) scale(1); } }
+.animate-blob { animation: blob 20s infinite var(--ease-smooth); }
 </style>
