@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from werkzeug.security import generate_password_hash, check_password_hash
 from .extensions import db
 
@@ -20,12 +20,13 @@ class User(db.Model):
     avatar = db.Column(db.String(256), default='')
     about_me = db.Column(db.Text())
     role = db.Column(db.String(20), default='user')
-    member_since = db.Column(db.DateTime, default=datetime.utcnow)
-    last_seen = db.Column(db.DateTime, default=datetime.utcnow)
+    email_verified = db.Column(db.Boolean, default=False)
+    member_since = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    last_seen = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
-    # 关系
-    posts = db.relationship('Post', backref='author', lazy='dynamic')
-    comments = db.relationship('Comment', backref='author', lazy='dynamic')
+    # 关系 (级联删除：删除用户时清除其帖子和评论)
+    posts = db.relationship('Post', backref='author', lazy='dynamic', cascade='all, delete-orphan')
+    comments = db.relationship('Comment', backref='author', lazy='dynamic', cascade='all, delete-orphan')
     # 注意：好友和私信通常通过查询表直接获取，不需要这里定义复杂的 relationship，除非你需要 user.friends 这种调用
 
     def set_password(self, password):
@@ -37,7 +38,7 @@ class User(db.Model):
     def to_dict(self):
         is_online = False
         if self.last_seen:
-            diff = datetime.utcnow() - self.last_seen
+            diff = datetime.now(timezone.utc) - self.last_seen
             if diff.total_seconds() < 300:  # 300秒 = 5分钟
                 is_online = True
 
@@ -56,11 +57,14 @@ class User(db.Model):
 # 3. 帖子表
 class Post(db.Model):
     __tablename__ = 'posts'
+    __table_args__ = (
+        db.Index('ix_posts_category_time', 'category_id', 'timestamp'),
+    )
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(128), nullable=False)
     body = db.Column(db.Text, nullable=False)
     views = db.Column(db.Integer, default=0)
-    timestamp = db.Column(db.DateTime, index=True, default=datetime.utcnow)
+    timestamp = db.Column(db.DateTime, index=True, default=lambda: datetime.now(timezone.utc))
 
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
     category_id = db.Column(db.Integer, db.ForeignKey('categories.id'))
@@ -85,16 +89,20 @@ class Post(db.Model):
             'author': {
                 'id': self.author.id,
                 'username': self.author.username,
-                'avatar': self.author.avatar  # 确保这里有 avatar
-            }
+                'avatar': self.author.avatar
+            },
+            'likes': PostLike.query.filter_by(post_id=self.id).count()
         }
 
 # 4. 评论表
 class Comment(db.Model):
     __tablename__ = 'comments'
+    __table_args__ = (
+        db.Index('ix_comments_post_time', 'post_id', 'timestamp'),
+    )
     id = db.Column(db.Integer, primary_key=True)
     body = db.Column(db.Text, nullable=False)
-    timestamp = db.Column(db.DateTime, index=True, default=datetime.utcnow)
+    timestamp = db.Column(db.DateTime, index=True, default=lambda: datetime.now(timezone.utc))
 
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
     post_id = db.Column(db.Integer, db.ForeignKey('posts.id'))
@@ -114,21 +122,29 @@ class Comment(db.Model):
 # 5. 好友表
 class Friend(db.Model):
     __tablename__ = 'friends'
+    __table_args__ = (
+        db.Index('ix_friends_user_status', 'user_id', 'status'),
+        db.Index('ix_friends_friend_status', 'friend_id', 'status'),
+    )
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'))   # 申请人
     friend_id = db.Column(db.Integer, db.ForeignKey('users.id')) # 被申请人
-    status = db.Column(db.String(20), default='pending')         # pending(申请中), accepted(已同意)
-    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    status = db.Column(db.String(20), default='pending')
+    timestamp = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
 # 6. 私信表
 class Message(db.Model):
     __tablename__ = 'messages'
+    __table_args__ = (
+        db.Index('ix_messages_pair', 'sender_id', 'receiver_id', 'timestamp'),
+        db.Index('ix_messages_unread', 'sender_id', 'receiver_id', 'is_read'),
+    )
     id = db.Column(db.Integer, primary_key=True)
     sender_id = db.Column(db.Integer, db.ForeignKey('users.id'))
     receiver_id = db.Column(db.Integer, db.ForeignKey('users.id'))
     body = db.Column(db.Text, nullable=False)
     is_read = db.Column(db.Boolean, default=False)
-    timestamp = db.Column(db.DateTime, index=True, default=datetime.utcnow)
+    timestamp = db.Column(db.DateTime, index=True, default=lambda: datetime.now(timezone.utc))
 
     # 关系便于查询
     sender = db.relationship('User', foreign_keys=[sender_id], backref='sent_messages')
@@ -144,3 +160,25 @@ class Message(db.Model):
             'timestamp': self.timestamp.isoformat() + 'Z',
             'is_read': self.is_read
         }
+
+# 7. 点赞表
+class PostLike(db.Model):
+    __tablename__ = 'post_likes'
+    __table_args__ = (
+        db.UniqueConstraint('user_id', 'post_id', name='uq_user_post_like'),
+    )
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
+    post_id = db.Column(db.Integer, db.ForeignKey('posts.id'))
+    timestamp = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+# 8. 关注表
+class Follow(db.Model):
+    __tablename__ = 'follows'
+    __table_args__ = (
+        db.UniqueConstraint('follower_id', 'followed_id', name='uq_follow'),
+    )
+    id = db.Column(db.Integer, primary_key=True)
+    follower_id = db.Column(db.Integer, db.ForeignKey('users.id'))
+    followed_id = db.Column(db.Integer, db.ForeignKey('users.id'))
+    timestamp = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))

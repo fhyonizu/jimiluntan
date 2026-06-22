@@ -1,10 +1,11 @@
 import axios from 'axios'
 
 // 创建 axios 实例
+// 开发时使用相对路径，由 Vite 代理转发到后端
+// 生产时如需直连，修改为完整 URL
 const api = axios.create({
-  // 确保这里是你的后端地址
-  baseURL: 'http://8.153.108.114:5000', 
-  timeout: 10000 // 请求超时时间
+  baseURL: import.meta.env.VITE_API_BASE || '', 
+  timeout: 10000
 })
 
 // 🟢 请求拦截器：每次发请求前，自动带上 Token

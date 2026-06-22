@@ -3,6 +3,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from ..models import User, Friend, Message
 from ..extensions import db, socketio
 from sqlalchemy import or_, and_
+from datetime import datetime, timezone
 
 social_bp = Blueprint('social', __name__)
 
@@ -77,48 +78,78 @@ def add_friend():
     return jsonify({'code': 200, 'message': '好友申请已发送'}), 200
 
 
-# 4. 🔥 修复：获取好友列表 (确保不显示自己)
+# 4. 🔥 修复：获取好友列表 (确保不显示自己，优化N+1查询)
 @social_bp.route('/friends', methods=['GET'])
 @jwt_required()
 def get_friends():
     current_id = int(get_jwt_identity())
 
-    # 查询所有相关且已通过的记录
     friends_rel = Friend.query.filter(
         or_(Friend.user_id == current_id, Friend.friend_id == current_id),
         Friend.status == 'accepted'
     ).all()
 
-    friend_list = []
+    # 收集所有好友 ID
+    friend_ids = []
     for rel in friends_rel:
-        # 🔥 逻辑核心：如果 user_id 是我，那朋友就是 friend_id；反之亦然
         if int(rel.user_id) == current_id:
-            fid = rel.friend_id
+            friend_ids.append(rel.friend_id)
         else:
-            fid = rel.user_id
+            friend_ids.append(rel.user_id)
 
-        friend_user = User.query.get(fid)
+    if not friend_ids:
+        return jsonify({'code': 200, 'data': []})
 
-        if friend_user:
-            # 获取最后一条消息
+    # 批量查询好友用户
+    friend_users = {u.id: u for u in User.query.filter(User.id.in_(friend_ids)).all()}
+
+    # 批量查询最后消息和未读数
+    last_msgs = {}
+    unread_counts = {}
+    if friend_ids:
+        # 最后消息：为每个好友取最后一条
+        for fid in friend_ids:
             last_msg = Message.query.filter(
                 or_(
                     and_(Message.sender_id == current_id, Message.receiver_id == fid),
                     and_(Message.sender_id == fid, Message.receiver_id == current_id)
                 )
             ).order_by(Message.timestamp.desc()).first()
+            if last_msg:
+                last_msgs[fid] = last_msg
 
-            unread = Message.query.filter_by(sender_id=fid, receiver_id=current_id, is_read=False).count()
+        # 未读数：一次查询搞定
+        from sqlalchemy import func
+        unread_rows = (
+            db.session.query(Message.sender_id, func.count(Message.id))
+            .filter(
+                Message.sender_id.in_(friend_ids),
+                Message.receiver_id == current_id,
+                Message.is_read == False
+            )
+            .group_by(Message.sender_id)
+            .all()
+        )
+        unread_counts = {row[0]: row[1] for row in unread_rows}
 
-            friend_list.append({
-                'id': friend_user.id,
-                'username': friend_user.username,
-                'avatar': friend_user.avatar,
-                'is_online': friend_user.to_dict()['is_online'],
-                'last_msg': last_msg.body if last_msg else '',
-                'last_msg_time': last_msg.timestamp.isoformat() + 'Z' if last_msg else None,
-                'unread_count': unread
-            })
+    friend_list = []
+    for fid in friend_ids:
+        friend_user = friend_users.get(fid)
+        if not friend_user:
+            continue
+
+        last_msg = last_msgs.get(fid)
+        unread = unread_counts.get(fid, 0)
+
+        friend_list.append({
+            'id': friend_user.id,
+            'username': friend_user.username,
+            'avatar': friend_user.avatar,
+            'is_online': friend_user.to_dict()['is_online'],
+            'last_msg': last_msg.body if last_msg else '',
+            'last_msg_time': last_msg.timestamp.isoformat() + 'Z' if last_msg else None,
+            'unread_count': unread
+        })
 
     return jsonify({'code': 200, 'data': friend_list})
 
@@ -216,3 +247,45 @@ def get_chat_history(partner_id):
     ).order_by(Message.timestamp.asc()).all()
 
     return jsonify({'code': 200, 'data': [m.to_dict() for m in messages]}), 200
+
+
+# ==========================================
+# 10. 关注 / 取关
+# ==========================================
+@social_bp.route('/follow/<int:user_id>', methods=['POST'])
+@jwt_required()
+def toggle_follow(user_id):
+    from ..models import Follow
+    current_id = int(get_jwt_identity())
+    if current_id == user_id:
+        return jsonify({'code': 400, 'message': '不能关注自己'}), 200
+
+    existing = Follow.query.filter_by(follower_id=current_id, followed_id=user_id).first()
+    if existing:
+        db.session.delete(existing)
+        db.session.commit()
+        return jsonify({'code': 200, 'message': '已取关', 'following': False}), 200
+    else:
+        db.session.add(Follow(follower_id=current_id, followed_id=user_id))
+        db.session.commit()
+        return jsonify({'code': 200, 'message': '已关注', 'following': True}), 200
+
+
+@social_bp.route('/follow/<int:user_id>', methods=['GET'])
+@jwt_required(optional=True)
+def check_follow(user_id):
+    from ..models import Follow
+    followers = Follow.query.filter_by(followed_id=user_id).count()
+    following = Follow.query.filter_by(follower_id=user_id).count()
+    is_following = False
+    try:
+        current_id = get_jwt_identity()
+        if current_id:
+            is_following = Follow.query.filter_by(follower_id=int(current_id), followed_id=user_id).first() is not None
+    except Exception:
+        pass
+    return jsonify({'code': 200, 'data': {
+        'followers': followers,
+        'following': following,
+        'is_following': is_following
+    }}), 200

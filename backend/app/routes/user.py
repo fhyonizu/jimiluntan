@@ -7,6 +7,18 @@ users_bp = Blueprint('users', __name__)
 
 
 # ==========================================
+# 获取当前用户信息
+# ==========================================
+@users_bp.route('/me', methods=['GET'])
+@jwt_required()
+def get_profile():
+    user_id = get_jwt_identity()
+    user = User.query.get(user_id)
+    if not user:
+        return jsonify({'code': 404, 'message': '用户不存在'}), 404
+    return jsonify({'code': 200, 'data': user.to_dict()}), 200
+
+# ==========================================
 # 修改个人资料 (昵称、简介、头像URL)
 # ==========================================
 @users_bp.route('/me', methods=['PUT'])
@@ -34,6 +46,12 @@ def update_profile():
     # 3. 修改头像 (目前暂时只支持 URL 链接，后面我们做图片上传功能)
     if 'avatar' in data:
         user.avatar = data['avatar']
+
+    # 4. 修改密码
+    if 'password' in data and data['password']:
+        if len(data['password']) < 6:
+            return jsonify({'code': 400, 'message': '新密码至少需要6个字符'}), 200
+        user.set_password(data['password'])
 
     try:
         db.session.commit()

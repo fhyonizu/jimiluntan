@@ -45,3 +45,15 @@ Thumbs.db
 
 # Environment variables
 .env
+
+# Reasonix (AI agent metadata)
+.reasonix/
+reasonix.toml
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+
+# Uploads (user-generated files should not be in repo)
+**/static/uploads/*
+!**/static/uploads/.gitkeep

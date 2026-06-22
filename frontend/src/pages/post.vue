@@ -90,7 +90,26 @@
                   {{ post.author.username }} 
                   <span class="text-xs bg-yellow-100 text-yellow-600 px-1 rounded ml-1">楼主</span>
                 </div>
-                <div class="text-xs text-slate-400">{{ formatDate(post.timestamp) }} · {{ post.views }} 次围观</div>
+                <div class="text-xs text-slate-400">{{ formatDate(post.timestamp) }} · {{ post.views }} 次围观 · ❤️ {{ post.likes || 0 }}</div>
+              </div>
+              
+              <!-- 🔥 帖子操作按钮 (编辑/删除/点赞) -->
+              <div class="ml-auto flex items-center gap-2" v-if="auth.isLoggedIn">
+                <!-- 点赞 -->
+                <button @click.stop="toggleLike" 
+                  :class="['px-3 py-1.5 rounded-xl text-sm font-bold transition-all flex items-center gap-1', liked ? 'bg-red-100 text-red-600' : 'bg-slate-100 text-slate-500 hover:bg-red-50 hover:text-red-500']">
+                  <span>{{ liked ? '❤️' : '🤍' }}</span> {{ likeCount }}
+                </button>
+                <!-- 编辑 (仅作者或管理员) -->
+                <button v-if="canEditPost" @click.stop="goEditPost"
+                  class="px-3 py-1.5 bg-amber-100 text-amber-700 rounded-xl text-sm font-bold hover:bg-amber-200 transition-colors">
+                  ✏️ 编辑
+                </button>
+                <!-- 删除 -->
+                <button v-if="canEditPost" @click.stop="deletePostConfirm"
+                  class="px-3 py-1.5 bg-red-100 text-red-600 rounded-xl text-sm font-bold hover:bg-red-200 transition-colors">
+                  🗑️ 删除
+                </button>
               </div>
             </div>
             
@@ -118,9 +137,23 @@
               <div class="flex-1 min-w-0">
                 <div class="flex justify-between items-center mb-2">
                   <span class="font-bold text-slate-700 text-sm cursor-pointer hover:text-purple-600" @click.stop="openProfile(comment.author.id)">{{ comment.author.username }}</span>
-                  <span class="text-xs text-slate-400">#{{ idx + 1 }} · {{ formatTimeAgo(comment.timestamp) }}</span>
+                  <div class="flex items-center gap-2">
+                    <!-- 编辑/删除评论按钮 -->
+                    <button v-if="canEditComment(comment)" @click.stop="startEditComment(comment)" class="text-xs text-slate-400 hover:text-amber-500 opacity-0 group-hover:opacity-100 transition-opacity">✏️</button>
+                    <button v-if="canEditComment(comment)" @click.stop="deleteCommentConfirm(comment)" class="text-xs text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">🗑️</button>
+                    <span class="text-xs text-slate-400">#{{ idx + 1 }} · {{ formatTimeAgo(comment.timestamp) }}</span>
+                  </div>
                 </div>
-                <div class="text-slate-600 text-sm leading-relaxed break-words" v-html="renderMarkdown(comment.body)"></div>
+                <!-- 编辑模式 -->
+                <div v-if="editingCommentId === comment.id" class="flex gap-2">
+                  <textarea v-model="editCommentBody" class="flex-1 bg-slate-50 border border-slate-200 rounded-lg p-2 text-sm focus:outline-none focus:border-purple-400" rows="2"></textarea>
+                  <div class="flex flex-col gap-1">
+                    <button @click="saveEditComment(comment)" class="text-xs bg-purple-500 text-white px-2 py-1 rounded">保存</button>
+                    <button @click="editingCommentId = null" class="text-xs bg-slate-300 text-white px-2 py-1 rounded">取消</button>
+                  </div>
+                </div>
+                <!-- 正常显示 -->
+                <div v-else class="text-slate-600 text-sm leading-relaxed break-words" v-html="renderMarkdown(comment.body)"></div>
               </div>
             </div>
             
@@ -317,6 +350,12 @@ const gifs = ref([])
 const gifSearchQuery = ref('reaction')
 const loadingGifs = ref(false)
 
+// === 新功能: 点赞 + 编辑/删除 ===
+const liked = ref(false)
+const likeCount = ref(0)
+const editingCommentId = ref(null)
+const editCommentBody = ref('')
+
 const isDetailMode = computed(() => route.name === 'PostDetail')
 
 const renderedBody = computed(() => {
@@ -355,7 +394,9 @@ const loadPost = async (id) => {
     const res = await api.get(`/api/posts/${id}`)
     if(res.data.code === 200) { 
       post.value = res.data.data; 
-      comments.value = res.data.data.comments || [] 
+      comments.value = res.data.data.comments || [];
+      likeCount.value = res.data.data.likes || 0;
+      fetchLikeStatus(id);
     } else { 
       message.value.showMessage('帖子不存在'); 
       setTimeout(() => router.push('/'), 2000) 
@@ -439,14 +480,12 @@ const fetchGifs = async (query = 'reaction') => {
   if (loadingGifs.value) return
   loadingGifs.value = true
   try {
-    const apiKey = 'MQpoBG43QMhuChyMCWnms3COEumxQMdF' 
-    const url = `https://api.giphy.com/v1/gifs/search?api_key=${apiKey}&q=${query}&limit=20&rating=g`
-    const controller = new AbortController()
-    setTimeout(() => controller.abort(), 3000)
-    const res = await fetch(url, { signal: controller.signal })
-    const data = await res.json()
-    if (data.data && data.data.length > 0) gifs.value = data.data
-    else gifs.value = fallbackGifs
+    const res = await api.get('/api/gifs', { params: { q: query, limit: 20 } })
+    if (res.data.code === 200 && res.data.data.length > 0) {
+      gifs.value = res.data.data
+    } else {
+      gifs.value = fallbackGifs
+    }
   } catch (e) {
     gifs.value = fallbackGifs
   } finally {
@@ -507,6 +546,85 @@ const submitReply = () => {
         })
       } else { message.value.showMessage(res.data.message) }
   }).finally(() => sending.value = false)
+}
+
+// --- 新功能: 点赞、编辑、删除 ---
+const canEditPost = computed(() => {
+  if (!auth.isLoggedIn || !post.value) return false
+  return auth.user.id === post.value.author.id || auth.isAdmin
+})
+
+const canEditComment = (comment) => {
+  if (!auth.isLoggedIn) return false
+  return auth.user.id === comment.author.id || auth.isAdmin
+}
+
+const fetchLikeStatus = async (pid) => {
+  try {
+    const res = await api.get(`/api/posts/${pid}/like`)
+    if (res.data.code === 200) {
+      liked.value = res.data.data.liked
+      likeCount.value = res.data.data.count
+    }
+  } catch (e) { /* ignore */ }
+}
+
+const toggleLike = async () => {
+  if (!auth.isLoggedIn) return router.push('/login')
+  try {
+    const res = await api.post(`/api/posts/${post.value.id}/like`)
+    if (res.data.code === 200) {
+      liked.value = res.data.liked
+      likeCount.value = res.data.count
+    }
+  } catch (e) { console.error(e) }
+}
+
+const goEditPost = () => {
+  router.push({ path: '/create', query: { edit: post.value.id } })
+}
+
+const deletePostConfirm = () => {
+  if (!confirm('确定要删除这个帖子吗？此操作不可撤销！')) return
+  api.delete(`/api/posts/${post.value.id}`).then(res => {
+    if (res.data.code === 200) {
+      message.value.showMessage('帖子已删除')
+      setTimeout(() => router.push('/'), 1000)
+    } else {
+      message.value.showMessage(res.data.message)
+    }
+  }).catch(e => { console.error(e); message.value.showMessage('删除失败') })
+}
+
+const startEditComment = (comment) => {
+  editingCommentId.value = comment.id
+  editCommentBody.value = comment.body
+}
+
+const saveEditComment = async (comment) => {
+  if (!editCommentBody.value.trim()) return
+  try {
+    const res = await api.put(`/api/posts/${post.value.id}/comments/${comment.id}`, { body: editCommentBody.value })
+    if (res.data.code === 200) {
+      comment.body = editCommentBody.value
+      editingCommentId.value = null
+      message.value.showMessage('评论已更新')
+    } else {
+      message.value.showMessage(res.data.message)
+    }
+  } catch (e) { console.error(e); message.value.showMessage('更新失败') }
+}
+
+const deleteCommentConfirm = (comment) => {
+  if (!confirm('确定要删除这条评论吗？')) return
+  api.delete(`/api/posts/${post.value.id}/comments/${comment.id}`).then(res => {
+    if (res.data.code === 200) {
+      comments.value = comments.value.filter(c => c.id !== comment.id)
+      message.value.showMessage('评论已删除')
+    } else {
+      message.value.showMessage(res.data.message)
+    }
+  }).catch(e => { console.error(e); message.value.showMessage('删除失败') })
 }
 
 // --- 辅助功能 ---

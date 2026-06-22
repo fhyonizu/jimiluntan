@@ -160,7 +160,7 @@ const loadFriends = async () => {
   try {
     const res = await api.get('/api/social/friends')
     if (res.data.code === 200) friends.value = res.data.data
-  } catch (e) {}
+  } catch (e) { console.error('获取好友列表失败:', e) }
 }
 
 const openChat = async (user) => {
@@ -192,11 +192,16 @@ const sendMessage = () => {
   inputText.value = ''
 }
 
+let _socketUnbind = null
+
 watch(() => auth.socket, (socket) => {
+  // 清理旧的监听器
+  if (_socketUnbind) { _socketUnbind(); _socketUnbind = null }
+  
   if (!socket) return
-  socket.on('new_message', (msg) => {
+  
+  const handler = (msg) => {
     if (currentChatUser.value && (msg.sender_id === currentChatUser.value.id || msg.sender_id === auth.user.id)) {
-      // 🔥 修复：去重检查
       const exists = messages.value.some(m => m.id === msg.id)
       if (!exists) {
         messages.value.push(msg)
@@ -205,7 +210,9 @@ watch(() => auth.socket, (socket) => {
       }
     }
     loadFriends()
-  })
+  }
+  socket.on('new_message', handler)
+  _socketUnbind = () => socket.off('new_message', handler)
 }, { immediate: true })
 
 const scrollToBottom = () => nextTick(() => { if (msgBox.value) msgBox.value.scrollTop = msgBox.value.scrollHeight })

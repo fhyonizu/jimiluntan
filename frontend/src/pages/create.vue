@@ -12,7 +12,7 @@
           <span class="mr-2 text-xl group-hover:-translate-x-1 transition-transform">🐾</span> 
           放弃发帖
         </router-link>
-        <h1 class="text-2xl font-extrabold text-slate-800">发布新罐头 🥫</h1>
+        <h1 class="text-2xl font-extrabold text-slate-800">{{ isEditMode ? '编辑罐头' : '发布新罐头' }} 🥫</h1>
       </div>
 
       <!-- 核心区域：左右分栏 -->
@@ -42,7 +42,7 @@
               <div class="relative">
                 <button @click="showEmoji = !showEmoji" :class="btnClass + ' text-lg'" title="表情">😀</button>
                 <div v-if="showEmoji" class="absolute top-10 left-0 z-50 shadow-2xl rounded-xl overflow-hidden">
-                  <div class="fixed inset-0 z-[-1]" @click="showEmoji = false"></div>
+                  <div class="fixed inset-0 z-40" @click="showEmoji = false"></div>
                   <EmojiPicker :native="true" @select="onSelectEmoji" />
                 </div>
               </div>
@@ -51,7 +51,7 @@
               <div class="relative">
                 <button @click="showGif = !showGif" :class="btnClass + ' text-lg'" title="哈基米GIF">🐱</button>
                 <div v-if="showGif" class="absolute top-10 left-0 z-50 w-64 bg-white/90 backdrop-blur-xl shadow-2xl rounded-xl p-3 border border-white/50">
-                  <div class="fixed inset-0 z-[-1]" @click="showGif = false"></div>
+                  <div class="fixed inset-0 z-40" @click="showGif = false"></div>
                   <div class="grid grid-cols-3 gap-2">
                     <img v-for="(gif, i) in catGifs" :key="i" :src="gif" 
                       @click="insertImage(gif)"
@@ -82,10 +82,13 @@
             <!-- 分区选择 (从后端加载) -->
             <div>
               <label class="block text-sm font-bold text-slate-500 mb-2">选择分区 <span class="text-red-400">*</span></label>
-              <div v-if="categories.length === 0" class="text-xs text-red-400">
+              <div v-if="categoriesLoading" class="text-xs text-slate-400 animate-pulse">
+                正在加载分区...
+              </div>
+              <div v-else-if="categories.length === 0" class="text-xs text-red-400">
                 (请先去后台创建分区)
               </div>
-              <div class="grid grid-cols-2 gap-2">
+              <div v-else class="grid grid-cols-2 gap-2">
                 <div v-for="cat in categories" :key="cat.id" 
                   @click="form.category_id = cat.id"
                   :class="[
@@ -130,7 +133,7 @@
             class="w-full py-4 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-bold rounded-2xl shadow-lg shadow-purple-500/30 hover:shadow-purple-500/50 hover:-translate-y-1 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-lg">
             <span v-if="loading" class="animate-spin">⏳</span>
             <span v-else>🚀</span>
-            {{ loading ? '正在上架...' : '发布帖子' }}
+            {{ loading ? '正在上架...' : (isEditMode ? '更新帖子' : '发布帖子') }}
           </button>
 
         </div>
@@ -144,7 +147,7 @@
 <script setup>
 import { reactive, ref, computed, onMounted } from 'vue'
 import api from '@/plugins/axios'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/plugins/auth' // 1. 引入 Auth Store
 import Showmessage from '@/components/showmessage.vue'
 import { marked } from 'marked'
@@ -152,13 +155,15 @@ import DOMPurify from 'dompurify'
 import EmojiPicker from 'vue3-emoji-picker'
 import 'vue3-emoji-picker/css'
 
-const router = useRouter(); const message = ref(); const loading = ref(false); const showEmoji = ref(false); const showGif = ref(false)
+const router = useRouter(); const route = useRoute(); const message = ref(); const loading = ref(false); const showEmoji = ref(false); const showGif = ref(false)
 const auth = useAuthStore() // 2. 使用 Store
 
 const btnClass = "px-2 py-1 rounded hover:bg-purple-100 text-slate-600 font-bold transition-colors text-sm"
 const catGifs = ['https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExMDQyZnJ6Y2o5YnJ6Y2o5YnJ6Y2o5YnJ6Y2o5YnJ6Y2o5eiZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/GeimqsH0TLDt4tScGw/giphy.gif', 'https://media.giphy.com/media/JIX9t2j0ZTN9S/giphy.gif', 'https://media.giphy.com/media/MDJ9IbxxvDUQM/giphy.gif', 'https://media.giphy.com/media/mlvseq9yvZhba/giphy.gif', 'https://media.giphy.com/media/VbnUQpnihPSIgIXuZv/giphy.gif', 'https://media.giphy.com/media/13CoXDiaCcCoyk/giphy.gif']
-const categories = ref([]); const tagInput = ref('')
+const categories = ref([]); const tagInput = ref(''); const categoriesLoading = ref(true)
 const form = reactive({ title: '', body: '', category_id: null, tags: [] })
+const isEditMode = computed(() => !!route.query.edit)
+const editPostId = computed(() => route.query.edit ? parseInt(route.query.edit) : null)
 
 onMounted(() => {
   api.get('/api/posts/categories').then(res => {
@@ -171,9 +176,28 @@ onMounted(() => {
       }
       
       categories.value = allCats
-      if(categories.value.length > 0) form.category_id = categories.value[0].id
+      if(categories.value.length > 0 && !isEditMode.value) form.category_id = categories.value[0].id
     }
-  })
+  }).catch(e => console.error('获取分区失败:', e))
+  .finally(() => categoriesLoading.value = false)
+
+  if (isEditMode.value && editPostId.value) {
+    loading.value = true
+    api.get(`/api/posts/${editPostId.value}`).then(res => {
+      if (res.data.code === 200) {
+        const p = res.data.data
+        if (auth.user.id !== p.author.id && !auth.isAdmin) {
+          message.value.showMessage('无权编辑此帖子')
+          setTimeout(() => router.push('/'), 1000)
+          return
+        }
+        form.title = p.title
+        form.body = p.body
+        form.category_id = p.category ? p.category.id : null
+        form.tags = p.tags || []
+      }
+    }).finally(() => loading.value = false)
+  }
 })
 
 const insertFormat = (prefix, suffix) => {
@@ -198,8 +222,16 @@ const handleSubmit = () => {
   if (!form.title.trim() || !form.body.trim()) return message.value.showMessage('标题和内容不能为空！')
   if (!form.category_id) return message.value.showMessage('请选择一个分区！')
   loading.value = true
-  api.post('/api/posts/', form).then(res => {
-      if (res.data.code === 200) { message.value.showMessage('🎉 发布成功！'); setTimeout(() => router.push('/'), 1000) } 
+  
+  const request = isEditMode.value 
+    ? api.put(`/api/posts/${editPostId.value}`, form)
+    : api.post('/api/posts/', form)
+  
+  request.then(res => {
+      if (res.data.code === 200) { 
+        message.value.showMessage(isEditMode.value ? '🎉 更新成功！' : '🎉 发布成功！'); 
+        setTimeout(() => router.push('/post/' + (isEditMode.value ? editPostId.value : res.data.data.id)), 1000) 
+      } 
       else { message.value.showMessage(res.data.message); loading.value = false }
     }).catch(err => { console.error(err); message.value.showMessage('网络错误'); loading.value = false })
 }

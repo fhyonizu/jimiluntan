@@ -1,16 +1,23 @@
 import sys
 import os
 
-# 将当前目录加入 Python 路径
-sys.path.append(os.path.abspath(os.path.dirname(__file__)))
+# 将父目录加入 Python 路径
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from app import create_app
-from app.extensions import db
-from app.models import User, Category
+from backend.app import create_app
+from backend.app.extensions import db
+from backend.app.models import User, Category, PostLike, Follow
 
 app = create_app()
 
 with app.app_context():
+    print("⚠️  警告：此操作将清空所有数据并重置数据库！")
+    print("============================================")
+    confirm = input("请输入 'YES' 确认操作: ")
+    if confirm != 'YES':
+        print("❌ 操作已取消。")
+        sys.exit(0)
+
     # ⚠️ 这会清空数据！如果只想更新表结构，请用 flask db migrate
     db.drop_all()
     db.create_all()
@@ -36,3 +43,13 @@ with app.app_context():
     print("✅ 数据库重置成功！")
     print("👉 管理员账号: admin@example.com")
     print("👉 密码: 123456")
+    print()
+    print("📊 新表已创建：")
+    print("   - categories (分区)")
+    print("   - users (用户)")
+    print("   - posts (帖子)")
+    print("   - comments (评论)")
+    print("   - friends (好友)")
+    print("   - messages (私信)")
+    print("   - post_likes (点赞)")
+    print("   - follows (关注)")

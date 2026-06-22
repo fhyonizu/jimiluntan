@@ -40,6 +40,17 @@
                   加入猫窝
                 </button>
               </div>
+              
+              <!-- 搜索栏 -->
+              <div class="mt-6 flex items-center gap-2 max-w-md mx-auto md:mx-0">
+                <input v-model="searchQuery" @keyup.enter="doSearch"
+                  placeholder="搜索帖子..." 
+                  class="flex-1 px-4 py-2.5 bg-white/60 backdrop-blur-md border border-white/60 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-purple-300 focus:bg-white transition-all" />
+                <button @click="doSearch"
+                  class="px-5 py-2.5 bg-slate-700 text-white text-sm font-bold rounded-full hover:bg-slate-800 transition-all flex items-center gap-1">
+                  🔍 搜索
+                </button>
+              </div>
             </div>
 
             <div class="flex gap-4 md:gap-6">
@@ -133,7 +144,7 @@
             <!-- 帖子渲染 -->
             <article v-for="(thread, idx) in threads" :key="thread.id" @click="router.push('/post/' + thread.id)"
               class="bg-white/40 backdrop-blur-xl shadow-lg rounded-3xl p-5 md:p-6 hover:bg-white transition-all duration-300 transform hover:-translate-y-1.5 hover:shadow-xl hover:shadow-purple-100 cursor-pointer group border border-white/60"
-              style="`animation: slideInUp 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) ${idx * 50}ms both;`">
+              :style="{ animation: `slideInUp 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) ${idx * 50}ms both` }">
               
               <div class="flex items-start gap-4">
                 <!-- 🔥 更新后的头像显示逻辑 -->
@@ -219,7 +230,7 @@
 <script setup>
 import { useAuthStore } from '@/plugins/auth.js'
 import appheader from '../components/appheader.vue'
-import { computed, ref, onMounted, watch, nextTick } from 'vue'
+import { computed, ref, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import api from '@/plugins/axios'
 
@@ -245,7 +256,16 @@ const isLoadingMore = ref(false)
 const hasMore = ref(true) 
 const page = ref(1) 
 const pageSize = 10 
-const loadSentinel = ref(null) 
+const loadSentinel = ref(null)
+let observer = null
+
+// 搜索
+const searchQuery = ref('')
+const doSearch = () => {
+  const q = searchQuery.value.trim()
+  if (!q) return
+  router.push({ path: '/', query: { search: q } })
+}
 
 onMounted(async () => {
   await fetchCategories()
@@ -257,7 +277,12 @@ onMounted(async () => {
     if (!isNaN(targetId)) activeCategoryId.value = targetId
   }
   
-  await fetchPosts(true)
+  if (route.query.search) {
+    searchQuery.value = route.query.search
+    await searchPosts(route.query.search)
+  } else {
+    await fetchPosts(true)
+  }
   setupIntersectionObserver()
 })
 
@@ -312,11 +337,13 @@ const fetchPosts = async (isReset = false) => {
         threads.value.push(...newPosts)
       }
 
-      if (newPosts.length < pageSize) {
-        hasMore.value = false
+      // 使用后端返回的分页信息，避免 off-by-one
+      if (res.data.total !== undefined) {
+        hasMore.value = page.value < res.data.pages
       } else {
-        page.value++
+        hasMore.value = newPosts.length >= pageSize
       }
+      if (newPosts.length > 0) page.value++
       
       if (isReset) {
          hotThreads.value = [...threads.value].sort((a,b) => b.views - a.views).slice(0, 5)
@@ -331,7 +358,8 @@ const fetchPosts = async (isReset = false) => {
 }
 
 const setupIntersectionObserver = () => {
-  const observer = new IntersectionObserver((entries) => {
+  if (observer) observer.disconnect()
+  observer = new IntersectionObserver((entries) => {
     if (entries[0].isIntersecting && hasMore.value && !isLoadingMore.value && !firstLoading.value) {
       fetchPosts(false)
     }
@@ -352,24 +380,48 @@ const fetchCategories = async () => {
         ...res.data.data
       ]
     }
-  } catch (e) {}
+  } catch (e) { console.error('获取分区失败:', e) }
 }
 
 const fetchStats = async () => {
   try {
     const res = await api.get('/api/stats')
     if (res.data.code === 200) siteStats.value = res.data.data
-  } catch (e) {}
+  } catch (e) { console.error('获取统计失败:', e) }
 }
 
 const fetchNotices = async () => {
   try {
     const res = await api.get('/api/notices')
     if (res.data.code === 200) notices.value = res.data.data
-  } catch (e) {}
+  } catch (e) { console.error('获取公告失败:', e) }
+}
+
+const searchPosts = async (q) => {
+  firstLoading.value = true
+  try {
+    const res = await api.get('/api/posts/search', { params: { q, page: 1, per_page: 50 } })
+    if (res.data.code === 200) {
+      threads.value = res.data.data.map(post => ({
+        id: post.id,
+        categoryId: post.category ? post.category.id : null,
+        title: post.title,
+        excerpt: (post.body || '').slice(0, 60).replace(/[#*`]/g, '') + '...',
+        author: post.author.username,
+        avatar: post.author.avatar,
+        timestamp: post.timestamp,
+        views: post.views,
+        tags: post.tags || []
+      }))
+      hasMore.value = false
+      hotThreads.value = [...threads.value].sort((a,b) => b.views - a.views).slice(0, 5)
+    }
+  } catch (e) { console.error(e) }
+  finally { firstLoading.value = false }
 }
 
 const currentCategoryName = computed(() => {
+  if (route.query.search) return `🔍 搜索: "${route.query.search}"`
   const found = categories.value.find(c => c.id === activeCategoryId.value)
   return found ? found.name : '全区动态'
 })
@@ -386,6 +438,10 @@ const closeDropdownWithDelay = () => setTimeout(() => isSortDropdownOpen.value =
 const goLogin = () => router.push('/login')
 const goNewPost = () => { if (auth.isLoggedIn) router.push('/create'); else router.push('/login') }
 const formatDate = (dateStr) => new Date(dateStr).toLocaleDateString()
+
+onUnmounted(() => {
+  if (observer) observer.disconnect()
+})
 </script>
 
 <style scoped>
@@ -393,4 +449,5 @@ const formatDate = (dateStr) => new Date(dateStr).toLocaleDateString()
 .animate-blob { animation: blob 7s infinite; }
 .animate-bounce-slow { animation: bounce-slow 3s infinite ease-in-out; }
 @keyframes bounce-slow { 0%, 100% { transform: translateY(-3px); } 50% { transform: translateY(3px); } }
+@keyframes slideInUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
 </style>

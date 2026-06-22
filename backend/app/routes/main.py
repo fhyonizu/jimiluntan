@@ -1,8 +1,9 @@
 import os
 import uuid
 from flask import Blueprint, jsonify, request, current_app
+from flask_jwt_extended import jwt_required, get_jwt_identity
 from ..models import Post, User, Category
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 main_bp = Blueprint('main', __name__)
 
@@ -10,6 +11,7 @@ main_bp = Blueprint('main', __name__)
 # 0. 配置与工具函数
 # ==========================================
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+MAX_FILE_SIZE = 5 * 1024 * 1024  # 5 MB
 
 
 def allowed_file(filename):
@@ -21,6 +23,7 @@ def allowed_file(filename):
 # 1. 文件上传接口 (头像/图片)
 # ==========================================
 @main_bp.route('/upload', methods=['POST'])
+@jwt_required()
 def upload_file():
     # 1. 检查是否有文件
     if 'file' not in request.files:
@@ -34,6 +37,32 @@ def upload_file():
 
     # 3. 校验格式并保存
     if file and allowed_file(file.filename):
+        # 读取文件头验证真实类型（防止伪造扩展名）
+        file.seek(0)
+        header = file.read(8)
+        file.seek(0)
+        valid_headers = {
+            b'\x89PNG\r\n\x1a\n': 'png',
+            b'\xff\xd8\xff': 'jpeg',
+            b'GIF87a': 'gif',
+            b'GIF89a': 'gif',
+            b'RIFF': 'webp',
+        }
+        is_valid = False
+        for magic, _ in valid_headers.items():
+            if header.startswith(magic):
+                is_valid = True
+                break
+        if not is_valid:
+            return jsonify({'code': 400, 'message': '文件内容与扩展名不匹配'}), 400
+
+        # 检查文件大小（先读到内存判断大小）
+        file.seek(0, os.SEEK_END)
+        file_size = file.tell()
+        file.seek(0)
+        if file_size > MAX_FILE_SIZE:
+            return jsonify({'code': 400, 'message': f'文件过大，最大允许 {MAX_FILE_SIZE // (1024 * 1024)}MB'}), 400
+
         # 生成唯一文件名 (uuid + 原后缀)
         ext = file.filename.rsplit('.', 1)[1].lower()
         filename = f"{uuid.uuid4().hex}.{ext}"
@@ -68,12 +97,12 @@ def get_site_stats():
     total_posts = Post.query.count()
 
     # 2. 今日投喂 (今日发布数)
-    today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
     today_posts = Post.query.filter(Post.timestamp >= today_start).count()
 
     # 3. 在线猫猫 (在线人数)
     # 修改为：过去 5 分钟内有过活动的用户 (更实时)
-    active_threshold = datetime.utcnow() - timedelta(minutes=5)
+    active_threshold = datetime.now(timezone.utc) - timedelta(minutes=5)
     online_users = User.query.filter(User.last_seen >= active_threshold).count()
 
     # 修正：如果显示为0 (可能你自己刚登陆还没刷新 last_seen)，至少显示1
@@ -117,8 +146,26 @@ def get_notices():
 
 
 # ==========================================
-# 4. (保留) 推广/广告位接口
+# 5. Giphy 代理 (隐藏 API 密钥)
 # ==========================================
+GIPHY_API_KEY = os.environ.get('GIPHY_API_KEY')
+
+@main_bp.route('/gifs', methods=['GET'])
+def proxy_gifs():
+    import requests
+    if not GIPHY_API_KEY:
+        return jsonify({'code': 500, 'message': 'Giphy 服务未配置'}), 200
+    query = request.args.get('q', 'reaction')
+    limit = request.args.get('limit', 20)
+    try:
+        resp = requests.get(
+            'https://api.giphy.com/v1/gifs/search',
+            params={'api_key': GIPHY_API_KEY, 'q': query, 'limit': limit, 'rating': 'g'},
+            timeout=5
+        )
+        return jsonify({'code': 200, 'data': resp.json().get('data', [])}), 200
+    except Exception as e:
+        return jsonify({'code': 500, 'message': 'Giphy 服务不可用'}), 200
 @main_bp.route('/promotions', methods=['GET'])
 def promotions():
     return jsonify({'code': 200, 'data': [

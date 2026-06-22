@@ -30,7 +30,8 @@ const showMessage = (msg) => {
   
   // 简单的智能图标判断
   if (msg.includes('成功')) icon.value = '🎉'
-  else if (msg.includes('失败') || msg.includes('错误') || msg.includes('空')) icon.value = '💔'
+  else if (msg.includes('失败') || msg.includes('错误')) icon.value = '💔'
+  else if (msg.includes('为空') || msg.includes('不能')) icon.value = '⚠️'
   else if (msg.includes('网络')) icon.value = '🔌'
   else icon.value = '🔔'
 

@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
 from ..extensions import db
-from ..models import User, Post, Category, Comment
+from ..models import User, Post, Category, Comment, Friend, Message
 from ..decorators import admin_required
 
 admin_bp = Blueprint('admin', __name__)
@@ -61,8 +61,9 @@ def del_cat(id):
 @admin_bp.route('/users', methods=['GET'])
 @admin_required()
 def get_users():
-    # 🔥 修复1：排序字段改为 member_since
-    users = User.query.order_by(User.member_since.desc()).all()
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 50, type=int)
+    pagination = User.query.order_by(User.member_since.desc()).paginate(page=page, per_page=per_page, error_out=False)
 
     data = [{
         'id': u.id,
@@ -70,11 +71,15 @@ def get_users():
         'email': u.email,
         'role': u.role,
         'avatar': u.avatar,
-        # 🔥 修复2：前端需要 'timestamp' 字段显示时间，我们将 member_since 映射过去
         'timestamp': u.member_since
-    } for u in users]
+    } for u in pagination.items]
 
-    return jsonify({'code': 200, 'data': data}), 200
+    return jsonify({
+        'code': 200,
+        'data': data,
+        'total': pagination.total,
+        'pages': pagination.pages
+    }), 200
 
 
 @admin_bp.route('/users/<int:id>', methods=['DELETE'])
@@ -82,14 +87,21 @@ def get_users():
 def del_user(id):
     user = User.query.get(id)
     if user:
-        # 防止删除唯一的管理员（根据你的逻辑调整）
+        # 防止删除唯一的管理员
         if user.role == 'admin' and User.query.filter_by(role='admin').count() <= 1:
             return jsonify({'code': 403, 'message': '不能删除最后一个管理员！'}), 200
 
-        # 因为你在 Post 模型里设置了级联删除 (comments_rel)，
-        # 但 User 模型里的 posts 和 comments 是 lazy='dynamic'
-        # SQLAlchemy 通常会自动处理 User 删除时的级联，前提是外键设置了 ON DELETE CASCADE
-        # 如果报错，可能需要先手动删除关联数据
+        # 清理与该用户相关的所有数据（外键约束）
+        # 帖子 & 评论 — 由 cascade 处理
+        # 好友关系
+        Friend.query.filter(
+            (Friend.user_id == id) | (Friend.friend_id == id)
+        ).delete(synchronize_session=False)
+        # 私信
+        Message.query.filter(
+            (Message.sender_id == id) | (Message.receiver_id == id)
+        ).delete(synchronize_session=False)
+
         db.session.delete(user)
         db.session.commit()
     return jsonify({'code': 200, 'message': '用户已移除'}), 200
@@ -101,7 +113,13 @@ def del_user(id):
 @admin_bp.route('/posts', methods=['GET'])
 @admin_required()
 def get_posts():
-    posts = Post.query.order_by(Post.timestamp.desc()).all()
+    from sqlalchemy.orm import joinedload
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 50, type=int)
+    pagination = Post.query.options(
+        joinedload(Post.author),
+        joinedload(Post.category)
+    ).order_by(Post.timestamp.desc()).paginate(page=page, per_page=per_page, error_out=False)
     data = [{
         'id': p.id,
         'title': p.title,
@@ -110,8 +128,13 @@ def get_posts():
         'timestamp': p.timestamp,
         'author': {'username': p.author.username} if p.author else {'username': '已注销'},
         'category': {'name': p.category.name} if p.category else {'name': '未分类'}
-    } for p in posts]
-    return jsonify({'code': 200, 'data': data}), 200
+    } for p in pagination.items]
+    return jsonify({
+        'code': 200,
+        'data': data,
+        'total': pagination.total,
+        'pages': pagination.pages
+    }), 200
 
 
 @admin_bp.route('/posts/<int:id>', methods=['DELETE'])
@@ -130,15 +153,25 @@ def del_post(id):
 @admin_bp.route('/comments', methods=['GET'])
 @admin_required()
 def get_comments():
-    comments = Comment.query.order_by(Comment.timestamp.desc()).all()
+    from sqlalchemy.orm import joinedload
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 50, type=int)
+    pagination = Comment.query.options(
+        joinedload(Comment.author)
+    ).order_by(Comment.timestamp.desc()).paginate(page=page, per_page=per_page, error_out=False)
     data = [{
         'id': c.id,
         'body': c.body,
         'timestamp': c.timestamp,
         'post_id': c.post_id,
         'author': {'username': c.author.username} if c.author else {'username': '未知'}
-    } for c in comments]
-    return jsonify({'code': 200, 'data': data}), 200
+    } for c in pagination.items]
+    return jsonify({
+        'code': 200,
+        'data': data,
+        'total': pagination.total,
+        'pages': pagination.pages
+    }), 200
 
 
 @admin_bp.route('/comments/<int:id>', methods=['DELETE'])

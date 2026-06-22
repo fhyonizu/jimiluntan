@@ -33,7 +33,15 @@ const routes = [
     name: 'Friends',
     component: () => import('@/pages/Friends.vue'),
     meta: { requiresAuth: true }
-    }
+    },
+    {
+    path: '/notifications',
+    name: 'Notifications',
+    component: () => import('@/pages/Notifications.vue'),
+    meta: { requiresAuth: true }
+    },
+    // 404 catch-all
+    { path: '/:pathMatch(.*)*', component: () => import('@/pages/NotFound.vue') }
 ]
 
 const router = createRouter({
