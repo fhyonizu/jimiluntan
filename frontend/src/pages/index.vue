@@ -1,6 +1,6 @@
 <template>
   <div class="min-h-screen bg-gradient-to-br from-indigo-100 via-purple-100 to-pink-100 font-sans selection:bg-pink-200">
-    
+
     <!-- 动态背景 -->
     <div class="fixed inset-0 overflow-hidden pointer-events-none z-0">
       <div class="absolute top-[-10%] left-[-10%] w-96 h-96 bg-purple-300 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob"></div>
@@ -12,12 +12,20 @@
       <appheader />
     </div>
 
+    <!-- 全局 toast（路由守卫消息） -->
+    <transition name="toast">
+      <div v-if="routeMsg" class="fixed top-8 left-1/2 -translate-x-1/2 z-[9999] flex items-center gap-3 px-6 py-3 bg-red-500/90 text-white rounded-full shadow-2xl backdrop-blur-md whitespace-nowrap pointer-events-none">
+        <span class="text-xl">⚠️</span>
+        <span class="font-bold text-sm tracking-wide">{{ routeMsg }}</span>
+      </div>
+    </transition>
+
     <!-- 顶部欢迎区 -->
     <header class="relative z-10 px-6 py-10 md:px-8">
       <div class="mx-auto max-w-7xl">
         <div class="bg-white/40 backdrop-blur-xl shadow-lg rounded-3xl p-8 md:p-12 relative overflow-hidden group">
           <div class="absolute inset-0 bg-gradient-to-r from-white/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
-          
+
           <div class="flex flex-col md:flex-row justify-between gap-8 items-center relative z-10">
             <div class="text-center md:text-left">
               <div class="inline-block px-4 py-1.5 rounded-full bg-white/60 text-pink-500 text-sm font-bold mb-4 shadow-sm border border-white/50 backdrop-blur-sm animate-bounce-slow">
@@ -29,7 +37,7 @@
               <p class="text-lg text-slate-600 mb-8 font-medium max-w-lg mx-auto md:mx-0">
                我要玩嘎啦给木
               </p>
-              
+
               <div class="flex gap-4 justify-center md:justify-start">
                 <button @click="goNewPost"
                   class="px-8 py-3.5 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-bold rounded-full shadow-lg shadow-purple-500/30 hover:shadow-purple-500/50 transition-all duration-300 transform hover:-translate-y-1 active:scale-95 flex items-center gap-2">
@@ -40,11 +48,11 @@
                   登录 / 注册
                 </button>
               </div>
-              
+
               <!-- 搜索栏 -->
               <div class="mt-6 flex items-center gap-2 max-w-md mx-auto md:mx-0">
                 <input v-model="searchQuery" @keyup.enter="doSearch"
-                  placeholder="搜索帖子..." 
+                  placeholder="搜索帖子..."
                   class="flex-1 px-4 py-2.5 bg-white/60 backdrop-blur-md border border-white/60 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-purple-300 focus:bg-white transition-all" />
                 <button @click="doSearch"
                   class="px-5 py-2.5 bg-slate-700 text-white text-sm font-bold rounded-full hover:bg-slate-800 transition-all flex items-center gap-1">
@@ -114,7 +122,7 @@
                 <span>{{ currentSortLabel }}</span>
                 <svg class="w-4 h-4 transition-transform duration-300" :class="isSortDropdownOpen ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
               </button>
-              
+
               <transition enter-active-class="transition duration-200 ease-out" enter-from-class="transform scale-95 opacity-0 translate-y-2" enter-to-class="transform scale-100 opacity-100 translate-y-0" leave-active-class="transition duration-150 ease-in" leave-from-class="transform scale-100 opacity-100 translate-y-0" leave-to-class="transform scale-95 opacity-0 translate-y-2">
                 <div v-if="isSortDropdownOpen" class="absolute right-0 top-full mt-2 w-40 bg-white/90 backdrop-blur-xl rounded-2xl shadow-xl border border-white/60 overflow-hidden z-50 origin-top-right p-1">
                   <ul class="text-sm font-bold text-slate-600">
@@ -128,30 +136,25 @@
 
           <!-- 帖子内容列表 -->
           <div class="space-y-4">
-            
-            <!-- 首次加载的骨架屏 -->
+
             <div v-if="firstLoading" class="space-y-4">
                <div v-for="i in 4" :key="'skeleton-'+i" class="bg-white/40 h-32 rounded-3xl animate-pulse border border-white/30"></div>
             </div>
 
-            <!-- 空状态 -->
             <div v-if="!firstLoading && threads.length === 0" class="bg-white/40 backdrop-blur-xl shadow-lg rounded-3xl p-12 text-center">
               <div class="text-6xl mb-4 animate-bounce">😿</div>
               <p class="text-slate-500 font-medium">这个版块还没有帖子</p>
               <button @click="goNewPost" class="mt-4 text-purple-600 font-bold hover:underline">发第一个帖子</button>
             </div>
 
-            <!-- 帖子渲染 -->
             <article v-for="(thread, idx) in threads" :key="thread.id" @click="router.push('/post/' + thread.id)"
               class="bg-white/40 backdrop-blur-xl shadow-lg rounded-3xl p-5 md:p-6 hover:bg-white apple-card cursor-pointer group border border-white/60"
               :style="{ animation: `springReveal 500ms var(--ease-spring-light) ${idx * 60}ms both` }"
               :class="{ 'spring-item': !firstLoading, 'visible': !firstLoading }">
-              
+
               <div class="flex items-start gap-4">
-                <!-- 🔥 更新后的头像显示逻辑 -->
                 <div class="flex-shrink-0 w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-200 to-purple-200 flex items-center justify-center shadow-inner overflow-hidden">
-                   
-                   <img v-if="thread.avatar" :src="auth.formatUrl(thread.avatar)" class="w-full h-full object-cover" />
+                   <img v-if="thread.avatar" :src="formatUrl(thread.avatar)" class="w-full h-full object-cover" />
                    <span v-else class="text-xl select-none">{{ thread.author?.charAt(0).toUpperCase() || '😺' }}</span>
                 </div>
 
@@ -159,7 +162,7 @@
                   <div class="flex items-center gap-2 text-xs font-bold text-slate-400 mb-1">
                     <span class="bg-blue-100 text-blue-600 px-2 py-0.5 rounded-lg">{{ thread.author }}</span>
                     <span>•</span>
-                    <span>{{ formatDate(thread.timestamp) }}</span>
+                    <span>{{ formatTimeAgo(thread.timestamp) }}</span>
                     <span v-for="tag in thread.tags" :key="tag" class="bg-pink-100 text-pink-500 px-1.5 py-0.5 rounded ml-1">#{{tag}}</span>
                   </div>
                   <h3 class="text-lg font-extrabold text-slate-800 mb-2 group-hover:text-purple-600 transition-colors line-clamp-1">{{ thread.title }}</h3>
@@ -172,19 +175,16 @@
               </div>
             </article>
 
-            <!-- 底部加载更多骨架屏 -->
             <div v-if="isLoadingMore" class="space-y-4 pt-2">
                <div v-for="i in 2" :key="'more-skeleton-'+i" class="bg-white/40 h-28 rounded-3xl animate-pulse border border-white/30 flex items-center justify-center text-slate-400 text-sm font-bold">
                   正在加载更多...
                </div>
             </div>
 
-            <!-- 到底了 -->
             <div v-if="!hasMore && threads.length > 0" class="text-center py-8 text-slate-400 text-xs font-bold">
                — 已经到底了 —
             </div>
 
-            <!-- 哨兵元素 -->
             <div ref="loadSentinel" class="h-4 w-full"></div>
 
           </div>
@@ -207,15 +207,14 @@
               </li>
             </ul>
           </div>
-          
-          <!-- 公告栏 -->
+
           <div class="bg-white/40 backdrop-blur-xl shadow-lg rounded-3xl p-6 border border-white/50 bg-gradient-to-b from-white/40 to-blue-50/40">
             <h2 class="text-lg font-bold text-slate-700 mb-4 flex items-center gap-2">📢 管理员通知</h2>
             <ul class="space-y-3" v-if="notices.length > 0">
-              <li v-for="notice in notices" :key="notice.id" 
+              <li v-for="notice in notices" :key="notice.id"
                   @click="router.push('/post/' + notice.id)"
                   class="bg-white/60 p-3 rounded-xl hover:scale-105 transition-transform duration-300 cursor-pointer shadow-sm border border-white/50">
-                <div class="text-xs font-extrabold text-blue-500 mb-1">📅 {{ formatDate(notice.time) }}</div>
+                <div class="text-xs font-extrabold text-blue-500 mb-1">📅 {{ formatTimeAgo(notice.time) }}</div>
                 <div class="text-sm font-bold text-slate-700 line-clamp-1">{{ notice.title }}</div>
               </li>
             </ul>
@@ -231,13 +230,24 @@
 <script setup>
 import { useAuthStore } from '@/plugins/auth.js'
 import appheader from '../components/appheader.vue'
+import { useFormatDate } from '@/composables/useFormatDate'
+import { useFormatUrl } from '@/composables/useFormatUrl'
+import { postsApi, mainApi } from '@/api'
 import { computed, ref, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import api from '@/plugins/axios'
 
-const auth = useAuthStore(); 
-const router = useRouter(); 
+const auth = useAuthStore()
+const router = useRouter()
 const route = useRoute()
+const { formatTimeAgo } = useFormatDate()
+const { formatUrl } = useFormatUrl()
+
+// 路由守卫消息
+const routeMsg = ref('')
+if (route.query.msg) {
+  routeMsg.value = route.query.msg
+  setTimeout(() => { routeMsg.value = '' }, 3000)
+}
 
 // 数据状态
 const threads = ref([])
@@ -246,21 +256,18 @@ const hotThreads = ref([])
 const notices = ref([])
 const siteStats = ref({ total_posts: 0, today_posts: 0, online_users: 0 })
 
-// 筛选与分页状态
 const activeCategoryId = ref('all')
 const sortBy = ref('latest')
 const isSortDropdownOpen = ref(false)
 
-// 加载状态
-const firstLoading = ref(true) 
-const isLoadingMore = ref(false) 
-const hasMore = ref(true) 
-const page = ref(1) 
-const pageSize = 10 
+const firstLoading = ref(true)
+const isLoadingMore = ref(false)
+const hasMore = ref(true)
+const page = ref(1)
+const pageSize = 10
 const loadSentinel = ref(null)
 let observer = null
 
-// 搜索
 const searchQuery = ref('')
 const doSearch = () => {
   const q = searchQuery.value.trim()
@@ -272,12 +279,12 @@ onMounted(async () => {
   await fetchCategories()
   await fetchStats()
   await fetchNotices()
-  
+
   if (route.query.category) {
     const targetId = Number(route.query.category)
     if (!isNaN(targetId)) activeCategoryId.value = targetId
   }
-  
+
   if (route.query.search) {
     searchQuery.value = route.query.search
     await searchPosts(route.query.search)
@@ -316,17 +323,16 @@ const fetchPosts = async (isReset = false) => {
       params.category_id = activeCategoryId.value
     }
 
-    // 保持原有的 /api/... 路径
-    const res = await api.get('/api/posts/', { params })
-    
+    const res = await postsApi.list(params)
+
     if(res.data.code === 200) {
       const newPosts = res.data.data.map(post => ({
         id: post.id,
-        categoryId: post.category ? post.category.id : null, 
+        categoryId: post.category ? post.category.id : null,
         title: post.title,
-        excerpt: (post.body || '').slice(0, 60).replace(/[#*`]/g, '') + '...', 
+        excerpt: (post.body || '').slice(0, 60).replace(/[#*`]/g, '') + '...',
         author: post.author.username,
-        avatar: post.author.avatar, // 这里拿到的是相对路径
+        avatar: post.author.avatar,
         timestamp: post.timestamp,
         views: post.views,
         tags: post.tags || []
@@ -338,20 +344,19 @@ const fetchPosts = async (isReset = false) => {
         threads.value.push(...newPosts)
       }
 
-      // 使用后端返回的分页信息，避免 off-by-one
       if (res.data.total !== undefined) {
         hasMore.value = page.value < res.data.pages
       } else {
         hasMore.value = newPosts.length >= pageSize
       }
       if (newPosts.length > 0) page.value++
-      
+
       if (isReset) {
          hotThreads.value = [...threads.value].sort((a,b) => b.views - a.views).slice(0, 5)
       }
     }
-  } catch (e) { 
-    console.error(e) 
+  } catch (e) {
+    console.error(e)
   } finally {
     firstLoading.value = false
     isLoadingMore.value = false
@@ -364,9 +369,7 @@ const setupIntersectionObserver = () => {
     if (entries[0].isIntersecting && hasMore.value && !isLoadingMore.value && !firstLoading.value) {
       fetchPosts(false)
     }
-  }, {
-    root: null, rootMargin: '100px', threshold: 0.1
-  })
+  }, { root: null, rootMargin: '100px', threshold: 0.1 })
   nextTick(() => {
     if (loadSentinel.value) observer.observe(loadSentinel.value)
   })
@@ -374,7 +377,7 @@ const setupIntersectionObserver = () => {
 
 const fetchCategories = async () => {
   try {
-    const res = await api.get('/api/posts/categories')
+    const res = await postsApi.categories()
     if(res.data.code === 200) {
       categories.value = [
         { id: 'all', name: '全区动态', icon: '🌍' },
@@ -386,14 +389,14 @@ const fetchCategories = async () => {
 
 const fetchStats = async () => {
   try {
-    const res = await api.get('/api/stats')
+    const res = await mainApi.stats()
     if (res.data.code === 200) siteStats.value = res.data.data
   } catch (e) { console.error('获取统计失败:', e) }
 }
 
 const fetchNotices = async () => {
   try {
-    const res = await api.get('/api/notices')
+    const res = await mainApi.notices()
     if (res.data.code === 200) notices.value = res.data.data
   } catch (e) { console.error('获取公告失败:', e) }
 }
@@ -401,7 +404,7 @@ const fetchNotices = async () => {
 const searchPosts = async (q) => {
   firstLoading.value = true
   try {
-    const res = await api.get('/api/posts/search', { params: { q, page: 1, per_page: 50 } })
+    const res = await postsApi.search({ q, page: 1, per_page: 50 })
     if (res.data.code === 200) {
       threads.value = res.data.data.map(post => ({
         id: post.id,
@@ -438,7 +441,6 @@ const selectSort = (type) => { sortBy.value = type; isSortDropdownOpen.value = f
 const closeDropdownWithDelay = () => setTimeout(() => isSortDropdownOpen.value = false, 200)
 const goLogin = () => router.push('/login')
 const goNewPost = () => { if (auth.isLoggedIn) router.push('/create'); else router.push('/login') }
-const formatDate = (dateStr) => new Date(dateStr).toLocaleDateString()
 
 onUnmounted(() => {
   if (observer) observer.disconnect()
@@ -446,9 +448,6 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-@keyframes blob { 0% { transform: translate(0px, 0px) scale(1); } 33% { transform: translate(30px, -50px) scale(1.05); } 66% { transform: translate(-20px, 20px) scale(0.97); } 100% { transform: translate(0px, 0px) scale(1); } }
-.animate-blob { animation: blob 20s infinite var(--ease-smooth); }
-.animate-bounce-slow { animation: bounce-slow 3s infinite var(--ease-smooth); }
-@keyframes bounce-slow { 0%, 100% { transform: translateY(-3px); } 50% { transform: translateY(3px); } }
-/* springReveal 定义在全局 style.css 中 */
+.toast-enter-active, .toast-leave-active { transition: all 400ms var(--ease-spring); }
+.toast-enter-from, .toast-leave-to { opacity: 0; transform: translate(-50%, -16px) scale(0.9); }
 </style>

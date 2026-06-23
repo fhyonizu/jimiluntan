@@ -33,9 +33,26 @@ class Config:
     RATELIMIT_STORAGE_URI = os.environ.get('RATELIMIT_STORAGE', 'memory://')
     RATELIMIT_STRATEGY = 'fixed-window'
 
+    # ==================== CORS ====================
+    CORS_ORIGINS = os.environ.get('CORS_ORIGINS', 'http://localhost:5173')
+
+    # ==================== SocketIO ====================
+    SOCKETIO_CORS = os.environ.get('SOCKETIO_CORS', 'http://localhost:5173')
+
 
 class ProductionConfig(Config):
     SQLALCHEMY_ECHO = False
+    DEBUG = False
+
+    @classmethod
+    def validate(cls) -> None:
+        """生产环境必须设置真实密钥"""
+        if cls.SECRET_KEY == 'dev-secret-key-change-this':
+            import warnings
+            warnings.warn('⚠️  生产环境使用了默认 SECRET_KEY，请设置环境变量！', RuntimeWarning)
+        if cls.JWT_SECRET_KEY == 'jwt-secret-key-change-this':
+            import warnings
+            warnings.warn('⚠️  生产环境使用了默认 JWT_SECRET_KEY，请设置环境变量！', RuntimeWarning)
 
 
 config = {

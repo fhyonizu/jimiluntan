@@ -1,6 +1,9 @@
 from datetime import datetime, timezone
+from typing import Any
+
 from werkzeug.security import generate_password_hash, check_password_hash
 from .extensions import db
+
 
 # 1. 分区表
 class Category(db.Model):
@@ -9,6 +12,7 @@ class Category(db.Model):
     name = db.Column(db.String(50), unique=True, nullable=False)
     icon = db.Column(db.String(20))
     posts = db.relationship('Post', backref='category', lazy='dynamic')
+
 
 # 2. 用户表
 class User(db.Model):
@@ -24,22 +28,22 @@ class User(db.Model):
     member_since = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     last_seen = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
-    # 关系 (级联删除：删除用户时清除其帖子和评论)
     posts = db.relationship('Post', backref='author', lazy='dynamic', cascade='all, delete-orphan')
     comments = db.relationship('Comment', backref='author', lazy='dynamic', cascade='all, delete-orphan')
-    # 注意：好友和私信通常通过查询表直接获取，不需要这里定义复杂的 relationship，除非你需要 user.friends 这种调用
 
-    def set_password(self, password):
+    def set_password(self, password: str) -> None:
         self.password_hash = generate_password_hash(password)
 
-    def check_password(self, password):
+    def check_password(self, password: str) -> bool:
         return check_password_hash(self.password_hash, password)
 
-    def to_dict(self):
+    def to_dict(self) -> dict[str, Any]:
         is_online = False
         if self.last_seen:
-            diff = datetime.now(timezone.utc) - self.last_seen
-            if diff.total_seconds() < 300:  # 300秒 = 5分钟
+            # SQLite 存储的是 naive datetime，需要统一比较
+            last_seen_utc = self.last_seen.replace(tzinfo=timezone.utc) if self.last_seen.tzinfo is None else self.last_seen
+            diff = datetime.now(timezone.utc) - last_seen_utc
+            if diff.total_seconds() < 300:
                 is_online = True
 
         return {
@@ -53,6 +57,7 @@ class User(db.Model):
             'posts_count': self.posts.count(),
             'is_online': is_online,
         }
+
 
 # 3. 帖子表
 class Post(db.Model):
@@ -70,10 +75,14 @@ class Post(db.Model):
     category_id = db.Column(db.Integer, db.ForeignKey('categories.id'))
     tags = db.Column(db.String(200))
 
-    # 级联删除
     comments_rel = db.relationship('Comment', backref='post', lazy='dynamic', cascade='all, delete-orphan')
 
-    def to_dict(self):
+    def to_dict(self) -> dict[str, Any]:
+        # 优先使用批量注入的 likes_count，避免 N+1
+        likes = getattr(self, '_likes_count', None)
+        if likes is None:
+            likes = PostLike.query.filter_by(post_id=self.id).count()
+
         return {
             'id': self.id,
             'title': self.title,
@@ -90,9 +99,10 @@ class Post(db.Model):
                 'id': self.author.id,
                 'username': self.author.username,
                 'avatar': self.author.avatar
-            },
-            'likes': PostLike.query.filter_by(post_id=self.id).count()
+            } if self.author else None,
+            'likes': likes
         }
+
 
 # 4. 评论表
 class Comment(db.Model):
@@ -107,7 +117,7 @@ class Comment(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
     post_id = db.Column(db.Integer, db.ForeignKey('posts.id'))
 
-    def to_dict(self):
+    def to_dict(self) -> dict[str, Any]:
         return {
             'id': self.id,
             'body': self.body,
@@ -115,9 +125,10 @@ class Comment(db.Model):
             'author': {
                 'id': self.author.id,
                 'username': self.author.username,
-                'avatar': self.author.avatar # 确保这里有 avatar
-            }
+                'avatar': self.author.avatar
+            } if self.author else None
         }
+
 
 # 5. 好友表
 class Friend(db.Model):
@@ -127,10 +138,11 @@ class Friend(db.Model):
         db.Index('ix_friends_friend_status', 'friend_id', 'status'),
     )
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'))   # 申请人
-    friend_id = db.Column(db.Integer, db.ForeignKey('users.id')) # 被申请人
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
+    friend_id = db.Column(db.Integer, db.ForeignKey('users.id'))
     status = db.Column(db.String(20), default='pending')
     timestamp = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
 
 # 6. 私信表
 class Message(db.Model):
@@ -146,20 +158,20 @@ class Message(db.Model):
     is_read = db.Column(db.Boolean, default=False)
     timestamp = db.Column(db.DateTime, index=True, default=lambda: datetime.now(timezone.utc))
 
-    # 关系便于查询
     sender = db.relationship('User', foreign_keys=[sender_id], backref='sent_messages')
     receiver = db.relationship('User', foreign_keys=[receiver_id], backref='received_messages')
 
-    def to_dict(self):
+    def to_dict(self) -> dict[str, Any]:
         return {
             'id': self.id,
             'sender_id': self.sender_id,
-            'sender_name': self.sender.username,
-            'sender_avatar': self.sender.avatar,
+            'sender_name': self.sender.username if self.sender else '',
+            'sender_avatar': self.sender.avatar if self.sender else '',
             'body': self.body,
             'timestamp': self.timestamp.isoformat() + 'Z',
             'is_read': self.is_read
         }
+
 
 # 7. 点赞表
 class PostLike(db.Model):
@@ -171,6 +183,7 @@ class PostLike(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
     post_id = db.Column(db.Integer, db.ForeignKey('posts.id'))
     timestamp = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
 
 # 8. 关注表
 class Follow(db.Model):

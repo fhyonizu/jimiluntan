@@ -16,10 +16,19 @@ export default defineConfig({
     host:'0.0.0.0',
     allowedHosts:['all'],
     proxy:{
-      '/*':{
+      '/api':{
         target: 'http://localhost:5000',
         changeOrigin: true,
-      }
+      },
+      '/auth':{
+        target: 'http://localhost:5000',
+        changeOrigin: true,
+      },
+      '/socket.io':{
+        target: 'http://localhost:5000',
+        changeOrigin: true,
+        ws: true,
+      },
     }
   }
 })

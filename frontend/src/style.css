@@ -174,3 +174,47 @@ h1,h2,h3,h4,h5,h6,p {
 ::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); border-radius: 20px; }
 ::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,0.25); }
 
+/* ==============================================
+   公共动画（从各组件提取，避免重复定义）
+   ============================================== */
+
+/* 流动背景 */
+@keyframes blob {
+  0% { transform: translate(0px, 0px) scale(1); }
+  33% { transform: translate(30px, -50px) scale(1.05); }
+  66% { transform: translate(-20px, 20px) scale(0.97); }
+  100% { transform: translate(0px, 0px) scale(1); }
+}
+.animate-blob { animation: blob 20s infinite var(--ease-smooth, ease); }
+.animation-delay-2000 { animation-delay: 2s; }
+.animation-delay-4000 { animation-delay: 4s; }
+
+/* 慢速弹跳 */
+@keyframes bounce-slow {
+  0%, 100% { transform: translateY(-3px); }
+  50% { transform: translateY(3px); }
+}
+.animate-bounce-slow { animation: bounce-slow 3s infinite ease-in-out; }
+
+/* Pop 弹出 */
+@keyframes pop {
+  0% { transform: scale(0.85); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+.animate-pop { animation: pop 300ms var(--ease-spring, cubic-bezier(0.175, 0.885, 0.32, 1.275)) both; }
+
+/* Fade-in */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in { animation: fadeIn 0.4s ease-out; }
+
+/* Pop-in (ChatWidget 等) */
+@keyframes popIn { from { transform: scale(0.85); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+.animate-pop-in { animation: popIn 350ms var(--ease-spring, cubic-bezier(0.175, 0.885, 0.32, 1.275)) both; }
+
+/* Slide-in (Friends 等) */
+@keyframes slideIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+.animate-slide-in { animation: slideIn 0.3s ease-out; }
+

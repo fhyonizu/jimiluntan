@@ -1,8 +1,8 @@
 <template>
   <div ref="widgetRef" :style="styleObject" class="fixed z-[9999] transition-all duration-75 ease-out">
-    
-    <!-- 1. 悬浮球 -->
-    <div v-if="!isExpanded" 
+
+    <!-- 悬浮球 -->
+    <div v-if="!isExpanded"
          @mousedown="startDrag" @touchstart="startDrag" @click="toggleExpand"
          class="w-14 h-14 rounded-full bg-gradient-to-br from-pink-500 to-purple-600 shadow-lg shadow-purple-500/40 flex items-center justify-center cursor-pointer hover:scale-110 transition-transform relative group select-none touch-none">
        <span class="text-2xl">💬</span>
@@ -11,13 +11,11 @@
        </div>
     </div>
 
-    <!-- 2. 聊天窗口 -->
+    <!-- 聊天窗口 -->
     <div v-else class="w-80 h-[500px] bg-white rounded-2xl shadow-2xl border border-slate-200 flex flex-col overflow-hidden animate-pop-in">
-      
-      <!-- 顶部 -->
+
       <div @mousedown="startDrag" @touchstart="startDrag" class="h-10 bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-between px-4 cursor-move shrink-0 select-none touch-none">
         <span class="text-white font-bold text-sm flex items-center gap-2">
-           <!-- 点击顶部标题看对方资料 -->
            <span v-if="currentChatUser" @click.stop="openProfile(currentChatUser.id)" class="truncate max-w-[150px] cursor-pointer hover:underline">{{ currentChatUser.username }}</span>
            <span v-else>消息中心</span>
         </span>
@@ -26,54 +24,49 @@
         </div>
       </div>
 
-      <!-- 内容 -->
       <div class="flex-1 overflow-hidden flex flex-col bg-slate-50 relative">
-        
-        <!-- A. 聊天界面 -->
+
+        <!-- 聊天界面 -->
         <div v-if="currentChatUser" class="flex-1 flex flex-col h-full">
            <div class="px-3 py-2 bg-white border-b border-slate-100 flex items-center gap-2 shrink-0">
               <button @click="currentChatUser = null" class="text-xs bg-slate-100 px-2 py-1 rounded hover:bg-slate-200 text-slate-600">← 返回列表</button>
            </div>
-           
-           <!-- 消息记录 -->
+
            <div ref="msgBox" class="flex-1 overflow-y-auto p-3 space-y-3 custom-scroll">
               <div v-for="msg in messages" :key="msg.id" :class="['flex items-start gap-2', msg.sender_id === auth.user.id ? 'flex-row-reverse' : 'flex-row']">
-                 
-                 <!-- 聊天头像 -->
+
                  <div @click.stop="openProfile(msg.sender_id === auth.user.id ? auth.user.id : msg.sender_id)" class="w-8 h-8 rounded-full shrink-0 overflow-hidden bg-gray-200 flex items-center justify-center text-xs font-bold text-gray-500 border border-white shadow-sm cursor-pointer">
-                    <img v-if="msg.sender_id === auth.user.id ? auth.user.avatar : msg.sender_avatar" 
-                         :src="auth.formatUrl(msg.sender_id === auth.user.id ? auth.user.avatar : msg.sender_avatar)" 
+                    <img v-if="msg.sender_id === auth.user.id ? auth.user.avatar : msg.sender_avatar"
+                         :src="formatUrl(msg.sender_id === auth.user.id ? auth.user.avatar : msg.sender_avatar)"
                          class="w-full h-full object-cover">
                     <span v-else>{{ (msg.sender_name || 'U').charAt(0).toUpperCase() }}</span>
                  </div>
 
-                 <!-- 气泡 -->
-                 <div :class="['max-w-[70%] px-3 py-2 rounded-xl text-sm break-all shadow-sm', 
+                 <div :class="['max-w-[70%] px-3 py-2 rounded-xl text-sm break-all shadow-sm',
                     msg.sender_id === auth.user.id ? 'bg-purple-500 text-white rounded-tr-none' : 'bg-white text-slate-700 rounded-tl-none border border-slate-100']">
                     {{ msg.body }}
                  </div>
               </div>
            </div>
 
-           <!-- 输入框 -->
            <div class="p-3 bg-white border-t border-slate-100 flex gap-2 shrink-0">
               <input v-model="inputText" @keyup.enter="sendMessage" class="flex-1 bg-slate-100 rounded-full px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-purple-300 transition-all" placeholder="说点什么...">
               <button @click="sendMessage" class="w-9 h-9 bg-purple-500 rounded-full text-white flex items-center justify-center hover:bg-purple-600 transition-colors shadow-md">➤</button>
            </div>
         </div>
 
-        <!-- B. 好友列表 -->
+        <!-- 好友列表 -->
         <div v-else class="h-full overflow-y-auto p-2 space-y-2 custom-scroll">
            <div v-if="friends.length === 0" class="text-center text-slate-400 text-xs py-10 flex flex-col gap-2">
              <span>🍃</span><span>暂无好友</span>
            </div>
-           
-           <div v-for="f in friends" :key="f.id" @click="openChat(f)" 
+
+           <div v-for="f in friends" :key="f.id" @click="openChat(f)"
                 class="flex items-center gap-3 p-3 bg-white rounded-xl cursor-pointer hover:bg-purple-50 transition-colors shadow-sm relative group border border-transparent hover:border-purple-100">
-              
+
               <div class="relative shrink-0">
                  <div class="w-12 h-12 rounded-full bg-indigo-100 flex items-center justify-center overflow-hidden border border-slate-100 text-indigo-500 font-bold text-lg">
-                    <img v-if="f.avatar" :src="auth.formatUrl(f.avatar)" class="w-full h-full object-cover">
+                    <img v-if="f.avatar" :src="formatUrl(f.avatar)" class="w-full h-full object-cover">
                     <span v-else>{{ f.username.charAt(0).toUpperCase() }}</span>
                  </div>
                  <div :class="['absolute bottom-0 right-0 w-3 h-3 border-2 border-white rounded-full', f.is_online ? 'bg-green-500' : 'bg-slate-300']"></div>
@@ -86,7 +79,7 @@
                  </div>
                  <div class="text-xs text-slate-500 truncate">{{ f.last_msg || '暂无消息...' }}</div>
               </div>
-              
+
               <div v-if="f.unread_count > 0" class="w-5 h-5 bg-red-500 rounded-full text-white text-[10px] font-bold flex items-center justify-center shadow-sm">
                  {{ f.unread_count }}
               </div>
@@ -101,13 +94,17 @@
 <script setup>
 import { ref, onMounted, computed, nextTick, watch, inject } from 'vue'
 import { useAuthStore } from '@/plugins/auth'
-import api from '@/plugins/axios'
+import { socialApi } from '@/api'
+import { useFormatDate } from '@/composables/useFormatDate'
+import { useFormatUrl } from '@/composables/useFormatUrl'
 import { useDraggable, useWindowSize } from '@vueuse/core'
 
 const auth = useAuthStore()
 const widgetRef = ref(null)
 const { width, height } = useWindowSize()
-const openProfile = inject('openProfile') // 注入
+const openProfile = inject('openProfile')
+const { formatTime } = useFormatDate()
+const { formatUrl } = useFormatUrl()
 
 const { x, y } = useDraggable(widgetRef, {
   initialValue: { x: window.innerWidth - 100, y: window.innerHeight - 150 },
@@ -158,7 +155,7 @@ const toggleExpand = () => {
 
 const loadFriends = async () => {
   try {
-    const res = await api.get('/api/social/friends')
+    const res = await socialApi.friends()
     if (res.data.code === 200) friends.value = res.data.data
   } catch (e) { console.error('获取好友列表失败:', e) }
 }
@@ -166,15 +163,16 @@ const loadFriends = async () => {
 const openChat = async (user) => {
   currentChatUser.value = user
   if (user.unread_count > 0) {
+    const prevUnread = user.unread_count
     user.unread_count = 0
-    auth.unreadCount = Math.max(0, auth.unreadCount - 1)
-    await api.post('/api/social/message/read', { partner_id: user.id })
+    auth.unreadCount = Math.max(0, auth.unreadCount - prevUnread)
+    await socialApi.markRead({ partner_id: user.id })
   }
   loadHistory(user.id)
 }
 
 const loadHistory = async (uid) => {
-  const res = await api.get(`/api/social/messages/${uid}`)
+  const res = await socialApi.chatHistory(uid)
   if (res.data.code === 200) {
     messages.value = res.data.data
     scrollToBottom()
@@ -183,40 +181,37 @@ const loadHistory = async (uid) => {
 
 const sendMessage = () => {
   if (!inputText.value.trim()) return
-  // 🔥 修复：只通过 socket 发送，不手动 push 到数组
-  // 等待 socket 广播回来后再显示，防止重复
-  auth.socket.emit('send_message', { 
-    receiver_id: currentChatUser.value.id, 
-    body: inputText.value 
+  auth.socket.emit('send_message', {
+    receiver_id: currentChatUser.value.id,
+    body: inputText.value
   })
   inputText.value = ''
 }
 
-let _socketUnbind = null
+// Socket 事件监听（防重复）
+let _socketBound = false
+let _socketOff = null
 
 watch(() => auth.socket, (socket) => {
-  // 清理旧的监听器
-  if (_socketUnbind) { _socketUnbind(); _socketUnbind = null }
-  
+  if (_socketOff) { _socketOff(); _socketOff = null }
   if (!socket) return
-  
+
   const handler = (msg) => {
     if (currentChatUser.value && (msg.sender_id === currentChatUser.value.id || msg.sender_id === auth.user.id)) {
       const exists = messages.value.some(m => m.id === msg.id)
       if (!exists) {
         messages.value.push(msg)
         scrollToBottom()
-        if(msg.sender_id !== auth.user.id) api.post('/api/social/message/read', { partner_id: msg.sender_id })
+        if(msg.sender_id !== auth.user.id) socialApi.markRead({ partner_id: msg.sender_id })
       }
     }
     loadFriends()
   }
   socket.on('new_message', handler)
-  _socketUnbind = () => socket.off('new_message', handler)
+  _socketOff = () => socket.off('new_message', handler)
 }, { immediate: true })
 
 const scrollToBottom = () => nextTick(() => { if (msgBox.value) msgBox.value.scrollTop = msgBox.value.scrollHeight })
-const formatTime = (t) => t ? new Date(t).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : ''
 
 const open = (user) => {
   isExpanded.value = true
@@ -231,11 +226,3 @@ onMounted(() => {
   }
 })
 </script>
-
-<style scoped>
-.animate-pop-in { animation: popIn 350ms var(--ease-spring) both; }
-@keyframes popIn { from { transform: scale(0.85); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-.custom-scroll::-webkit-scrollbar { width: 4px; }
-.custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
-.custom-scroll::-webkit-scrollbar-track { background: transparent; }
-</style>

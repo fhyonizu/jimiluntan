@@ -1,5 +1,8 @@
 import os
 import uuid
+import re
+import random
+import requests as http_requests
 from flask import Blueprint, jsonify, request, current_app
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from ..models import Post, User, Category
@@ -13,11 +16,15 @@ main_bp = Blueprint('main', __name__)
 # ==========================================
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
 MAX_FILE_SIZE = 5 * 1024 * 1024  # 5 MB
+# 安全校验：扩展名只允许字母数字
+EXT_REGEX = re.compile(r'^[a-zA-Z0-9]+$')
 
 
-def allowed_file(filename):
-    return '.' in filename and \
-        filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+def allowed_file(filename: str) -> bool:
+    if '.' not in filename:
+        return False
+    ext = filename.rsplit('.', 1)[1].lower()
+    return ext in ALLOWED_EXTENSIONS and EXT_REGEX.match(ext)
 
 
 # ==========================================
@@ -26,60 +33,63 @@ def allowed_file(filename):
 @main_bp.route('/upload', methods=['POST'])
 @jwt_required()
 def upload_file():
-    # 1. 检查是否有文件
     if 'file' not in request.files:
         return jsonify({'code': 400, 'message': '未检测到文件'}), 400
 
     file = request.files['file']
 
-    # 2. 检查文件名是否为空
     if file.filename == '':
         return jsonify({'code': 400, 'message': '未选择文件'}), 400
 
-    # 3. 校验格式并保存
     if file and allowed_file(file.filename):
         # 读取文件头验证真实类型（防止伪造扩展名）
         file.seek(0)
-        header = file.read(8)
+        header = file.read(12)
         file.seek(0)
-        valid_headers = {
+        valid_types = {
             b'\x89PNG\r\n\x1a\n': 'png',
             b'\xff\xd8\xff': 'jpeg',
             b'GIF87a': 'gif',
             b'GIF89a': 'gif',
-            b'RIFF': 'webp',
         }
         is_valid = False
-        for magic, _ in valid_headers.items():
+        for magic, _ in valid_types.items():
             if header.startswith(magic):
                 is_valid = True
                 break
+        # WebP: RIFF....WEBP
+        if not is_valid and header[:4] == b'RIFF' and header[8:12] == b'WEBP':
+            is_valid = True
+
         if not is_valid:
             return jsonify({'code': 400, 'message': '文件内容与扩展名不匹配'}), 400
 
-        # 检查文件大小（先读到内存判断大小）
+        # 检查文件大小
         file.seek(0, os.SEEK_END)
         file_size = file.tell()
         file.seek(0)
         if file_size > MAX_FILE_SIZE:
             return jsonify({'code': 400, 'message': f'文件过大，最大允许 {MAX_FILE_SIZE // (1024 * 1024)}MB'}), 400
 
-        # 生成唯一文件名 (uuid + 原后缀)
+        # 安全扩展名（已通过 allowed_file 校验）
         ext = file.filename.rsplit('.', 1)[1].lower()
+        # 二次防御：严格匹配白名单，防止任何路径注入
+        if ext not in ALLOWED_EXTENSIONS:
+            return jsonify({'code': 400, 'message': '不支持的文件格式'}), 400
         filename = f"{uuid.uuid4().hex}.{ext}"
 
-        # 确保 static/uploads 目录存在
-        # current_app.root_path 指向 backend 文件夹
         upload_folder = os.path.join(current_app.root_path, 'static', 'uploads')
-        if not os.path.exists(upload_folder):
-            os.makedirs(upload_folder)
+        os.makedirs(upload_folder, exist_ok=True)
 
-        # 保存文件
-        file.save(os.path.join(upload_folder, filename))
+        # 安全拼接：确保最终路径在 uploads 目录内
+        save_path = os.path.normpath(os.path.join(upload_folder, filename))
+        if not save_path.startswith(os.path.normpath(upload_folder) + os.sep):
+            current_app.logger.warning('文件保存路径越界拦截: %s', filename)
+            return jsonify({'code': 400, 'message': '文件名非法'}), 400
 
-        # 返回相对路径 URL (前端需拼接 baseURL)
+        file.save(save_path)
+
         file_url = f"/static/uploads/{filename}"
-
         return jsonify({
             'code': 200,
             'message': '上传成功',
@@ -93,20 +103,16 @@ def upload_file():
 # 2. 全站统计数据
 # ==========================================
 @main_bp.route('/stats', methods=['GET'])
-@cache.cached(timeout=30, query_string=True)
+@cache.cached(timeout=30)
 def get_site_stats():
-    # 1. 总帖子数
     total_posts = Post.query.count()
 
-    # 2. 今日发布数
     today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
     today_posts = Post.query.filter(Post.timestamp >= today_start).count()
 
-    # 3. 在线用户数 (5分钟内活跃)
     active_threshold = datetime.now(timezone.utc) - timedelta(minutes=5)
     online_users = User.query.filter(User.last_seen >= active_threshold).count()
 
-    # 修正：如果显示为0 (可能你自己刚登陆还没刷新 last_seen)，至少显示1
     if online_users == 0:
         online_users = 1
 
@@ -117,45 +123,39 @@ def get_site_stats():
             'today_posts': today_posts,
             'online_users': online_users
         }
-    })
+    }), 200
 
 
 # ==========================================
-# 3. 管理员通知 (获取“公告栏”分区的帖子)
+# 3. 管理员通知
 # ==========================================
 @main_bp.route('/notices', methods=['GET'])
-@cache.cached(timeout=60, query_string=True)
+@cache.cached(timeout=60)
 def get_notices():
     notice_cat = Category.query.filter_by(name='公告栏').first()
 
     if not notice_cat:
-        return jsonify({'code': 200, 'data': []})
+        return jsonify({'code': 200, 'data': []}), 200
 
-    # 获取该分区下最新的 5 条帖子
     notices = Post.query.filter_by(category_id=notice_cat.id) \
         .order_by(Post.timestamp.desc()) \
         .limit(5).all()
 
-    data = []
-    for p in notices:
-        data.append({
-            'id': p.id,
-            'title': p.title,
-            'time': p.timestamp.isoformat() + 'Z'
-        })
+    data = [{
+        'id': p.id,
+        'title': p.title,
+        'time': p.timestamp.isoformat() + 'Z'
+    } for p in notices]
 
-    return jsonify({'code': 200, 'data': data})
+    return jsonify({'code': 200, 'data': data}), 200
 
 
 # ==========================================
-# 5. GIF 搜索代理 (多源: Giphy / Tenor / 免费内置)
+# 4. GIF 搜索代理
 # ==========================================
-import requests
-
 GIPHY_API_KEY = os.environ.get('GIPHY_API_KEY')
-TENOR_API_KEY = os.environ.get('TENOR_API_KEY')  # 免费申请: https://tenor.com/developer
+TENOR_API_KEY = os.environ.get('TENOR_API_KEY')
 
-# 内置免费表情包 (无需任何 API Key)
 FREE_GIFS = [
     {"id": "free_001", "images": {"fixed_height_small": {"url": "https://media.giphy.com/media/JIX9t2j0ZTN9S/200w.gif"}, "fixed_height": {"url": "https://media.giphy.com/media/JIX9t2j0ZTN9S/giphy.gif"}}},
     {"id": "free_002", "images": {"fixed_height_small": {"url": "https://media.giphy.com/media/8Iv5lqKwKsZ2g/200w.gif"}, "fixed_height": {"url": "https://media.giphy.com/media/8Iv5lqKwKsZ2g/giphy.gif"}}},
@@ -179,15 +179,18 @@ FREE_GIFS = [
     {"id": "free_020", "images": {"fixed_height_small": {"url": "https://media.giphy.com/media/xT9DPldJHzZKtORo2A/200w.gif"}, "fixed_height": {"url": "https://media.giphy.com/media/xT9DPldJHzZKtORo2A/giphy.gif"}}},
 ]
 
+MAX_GIF_LIMIT = 30
+
+
 @main_bp.route('/gifs', methods=['GET'])
 def proxy_gifs():
-    query = (request.args.get('q', 'reaction') or '').strip()
-    limit = request.args.get('limit', 20, type=int)
+    query = (request.args.get('q', 'reaction') or '').strip()[:100]  # 限制搜索词长度
+    limit = min(request.args.get('limit', 20, type=int), MAX_GIF_LIMIT)
 
-    # 1. 优先 Giphy (如果有 Key)
+    # 1. Giphy
     if GIPHY_API_KEY:
         try:
-            resp = requests.get(
+            resp = http_requests.get(
                 'https://api.giphy.com/v1/gifs/search',
                 params={'api_key': GIPHY_API_KEY, 'q': query, 'limit': limit, 'rating': 'g'},
                 timeout=5
@@ -196,13 +199,13 @@ def proxy_gifs():
                 data = resp.json().get('data', [])
                 if data:
                     return jsonify({'code': 200, 'data': data, 'source': 'giphy'}), 200
-        except Exception:
-            pass
+        except Exception as e:
+            current_app.logger.warning('Giphy 请求失败: %s', e)
 
-    # 2. 尝试 Tenor (免费 API, 每天 10,000 次)
+    # 2. Tenor
     if TENOR_API_KEY:
         try:
-            resp = requests.get(
+            resp = http_requests.get(
                 'https://tenor.googleapis.com/v2/search',
                 params={'key': TENOR_API_KEY, 'q': query, 'limit': limit, 'media_filter': 'gif,tinygif'},
                 timeout=5
@@ -222,11 +225,10 @@ def proxy_gifs():
                     })
                 if data:
                     return jsonify({'code': 200, 'data': data, 'source': 'tenor'}), 200
-        except Exception:
-            pass
+        except Exception as e:
+            current_app.logger.warning('Tenor 请求失败: %s', e)
 
-    # 3. 兜底: 内置免费表情包 (按 query 简单筛选)
-    import random
+    # 3. 内置免费表情包
     rng = random.Random(query if query else 'cat')
     result = FREE_GIFS.copy()
     rng.shuffle(result)

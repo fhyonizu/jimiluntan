@@ -62,7 +62,7 @@
                 class="flex items-center gap-2 group bg-white/50 px-3 py-1.5 rounded-full hover:bg-white transition-all border border-transparent hover:border-purple-200">
                 <div
                   class="w-7 h-7 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center text-xs text-white font-bold overflow-hidden shadow-inner">
-                  <img v-if="user.avatar" :src="auth.formatUrl(user.avatar)" class="w-full h-full object-cover" />
+                  <img v-if="user.avatar" :src="formatUrl(user.avatar)" class="w-full h-full object-cover" />
                   <span v-else>{{ user.username?.charAt(0).toUpperCase() || 'Me' }}</span>
                 </div>
                 <span class="text-sm font-bold text-slate-700 group-hover:text-purple-600 transition-colors">
@@ -123,12 +123,14 @@ import { useAuthStore } from '../plugins/auth';
 import { useRouter } from 'vue-router';
 import { storeToRefs } from 'pinia';
 import { ref } from 'vue';
+import { useFormatUrl } from '@/composables/useFormatUrl';
 
 const auth = useAuthStore();
 const router = useRouter();
 
 const { isLoggedIn, user, isAdmin } = storeToRefs(auth);
 const mobileMenuOpen = ref(false);
+const { formatUrl } = useFormatUrl();
 
 const handleLogout = () => {
   if (confirm('确定要退出当前账号吗？')) {

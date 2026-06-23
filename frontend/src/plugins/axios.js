@@ -1,45 +1,47 @@
 import axios from 'axios'
 
 // 创建 axios 实例
-// 开发时使用相对路径，由 Vite 代理转发到后端
-// 生产时如需直连，修改为完整 URL
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE || '', 
+  baseURL: import.meta.env.VITE_API_BASE || '',
   timeout: 10000
 })
 
-// 🟢 请求拦截器：每次发请求前，自动带上 Token
+// 请求拦截器：自动带 Token
 api.interceptors.request.use(
   (config) => {
-    // 从本地存储获取 token
     const token = localStorage.getItem('token')
-    
-    // 只有当 token 存在，且不是 "undefined" 这种脏数据时，才添加
     if (token && token !== 'undefined' && token !== 'null') {
-      // 注意：Flask-JWT-Extended 默认要求格式为 "Bearer <token>"
       config.headers.Authorization = `Bearer ${token}`
     }
-    
     return config
   },
-  (error) => {
-    return Promise.reject(error)
-  }
+  (error) => Promise.reject(error)
 )
 
-// 🔴 响应拦截器：统一处理错误
+// 响应拦截器：统一错误处理
 api.interceptors.response.use(
-  (response) => {
-    return response
-  },
+  (response) => response,
   (error) => {
-    // 如果后端返回 401 (未授权) 或 422 (Token无效)，强制退出
-    if (error.response && (error.response.status === 401 || error.response.status === 422)) {
-      console.warn('登录过期或 Token 无效，正在清理...')
-      localStorage.removeItem('token')
-      localStorage.removeItem('user')
-      // 可选：强制跳转回登录页
-      // window.location.href = '/login' 
+    if (error.response) {
+      const status = error.response.status
+      const data = error.response.data || {}
+
+      // 401 / 422 → 登录过期，清理并跳转
+      if (status === 401 || status === 422) {
+        localStorage.removeItem('token')
+        localStorage.removeItem('user')
+        // 避免在登录页循环跳转
+        if (window.location.pathname !== '/login') {
+          window.location.href = '/login'
+        }
+      }
+
+      // 把后端 message 挂到 error 上，方便组件使用
+      error._message = data.message || `请求失败 (${status})`
+    } else if (error.request) {
+      error._message = '网络连接失败，请检查网络'
+    } else {
+      error._message = '请求发送失败'
     }
     return Promise.reject(error)
   }

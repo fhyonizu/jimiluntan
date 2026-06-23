@@ -8,7 +8,7 @@ from flask_limiter.util import get_remote_address
 
 db = SQLAlchemy()
 migrate = Migrate()
-socketio = SocketIO(cors_allowed_origins="*")
+socketio = SocketIO(cors_allowed_origins="*")  # 在 create_app 中根据配置重置
 cache = Cache()
 compress = Compress()
 limiter = Limiter(key_func=get_remote_address, default_limits=["200 per minute"])

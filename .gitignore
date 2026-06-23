@@ -7,13 +7,16 @@
 
 # Python
 __pycache__/
+*.pyc
 *.py[cod]
 *$py.class
 *.so
 .Python
+.venv/
 env/
 venv/
 ENV/
+backend/.venv/
 build/
 develop-eggs/
 dist/
@@ -36,6 +39,8 @@ instance/
 
 # Database
 *.db
+*.db-shm
+*.db-wal
 *.sqlite
 *.sqlite3
 
@@ -45,15 +50,30 @@ Thumbs.db
 
 # Environment variables
 .env
+.env.*
+!.env.example
+replace-secrets.txt
+
+# Security scan reports
+gitleaks*.json
 
 # Reasonix (AI agent metadata)
 .reasonix/
 reasonix.toml
 
 # Frontend
+node_modules/
+dist/
+build/
 frontend/node_modules/
 frontend/dist/
 
 # Uploads (user-generated files should not be in repo)
 **/static/uploads/*
 !**/static/uploads/.gitkeep
+
+# Docker runtime
+.restart-requested
+
+# Session
+.claude/

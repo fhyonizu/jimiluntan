@@ -1,115 +1,106 @@
 <template>
   <div class="min-h-screen bg-gradient-to-br from-indigo-100 via-purple-100 to-pink-100 font-sans selection:bg-pink-200 overflow-hidden relative">
-    
-    <div class="absolute top-[-10%] left-[-10%] w-96 h-96 bg-purple-300 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob"></div>
-    <div class="absolute top-[20%] right-[-10%] w-96 h-96 bg-yellow-200 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob animation-delay-2000"></div>
-    <div class="absolute bottom-[-20%] left-[20%] w-96 h-96 bg-pink-300 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob animation-delay-4000"></div>
+
+    <!-- 动态背景 -->
+    <div class="fixed inset-0 overflow-hidden pointer-events-none z-0">
+      <div class="absolute top-[-10%] left-[-10%] w-96 h-96 bg-purple-300 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob"></div>
+      <div class="absolute top-[20%] right-[-10%] w-96 h-96 bg-yellow-200 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob animation-delay-2000"></div>
+      <div class="absolute bottom-[-20%] left-[20%] w-96 h-96 bg-pink-300 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob animation-delay-4000"></div>
+    </div>
 
     <div class="relative z-50">
       <appheader />
     </div>
 
     <main class="relative z-10 max-w-5xl mx-auto px-6 py-12">
-      
-      <div class="text-center mb-16 relative">
-        <div class="absolute top-0 left-1/2 -translate-x-32 -translate-y-12 text-6xl opacity-20 rotate-[-15deg] animate-pulse">🐾</div>
-        
+
+      <!-- 顶部标题区 -->
+      <header class="text-center mb-14">
         <div class="inline-block px-4 py-1.5 rounded-full bg-white/60 text-pink-500 text-sm font-bold mb-6 shadow-sm border border-white/50 backdrop-blur-sm animate-bounce-slow">
-          🐱 开发者社区 · 技术交流
+          📖 关于本站
         </div>
-        <h1 class="text-4xl md:text-6xl font-extrabold text-slate-800 mb-6 tracking-tight">
-          打破 <span class="text-transparent bg-clip-text bg-gradient-to-r from-purple-500 to-pink-500">次元壁</span> 的
-          <br class="md:hidden" />
-          技术社区
+        <h1 class="text-4xl md:text-6xl font-extrabold text-slate-800 mb-4 tracking-tight">
+          基米<span class="text-transparent bg-clip-text bg-gradient-to-r from-purple-500 to-pink-500">论坛</span>
         </h1>
         <p class="text-lg md:text-xl text-slate-600 max-w-2xl mx-auto leading-relaxed">
-          左手写代码，右手撸猫。在这里，我们用 Python 吟唱魔法，用 Vue 构建异世界。
+          一个开源的轻量级社区平台，为开发者和技术爱好者提供简洁、高效的交流空间。
         </p>
-      </div>
+      </header>
 
-      <div class="grid md:grid-cols-3 gap-6 mb-16">
-        <div class="bg-white/40 backdrop-blur-md p-8 rounded-3xl border border-white/50 hover:-translate-y-2 transition-transform duration-300 group">
-          <div class="w-14 h-14 bg-blue-100 rounded-2xl flex items-center justify-center text-3xl mb-4 group-hover:scale-110 transition-transform">💻</div>
-          <h3 class="text-xl font-bold text-slate-800 mb-2">硬核技术栈</h3>
-          <p class="text-slate-600 text-sm leading-relaxed">
-            探讨 Flask 后端架构，深挖 Vue3 响应式原理。不做 CRUD Boy，要做全栈魔法师。
-          </p>
-        </div>
-
-        <div class="bg-gradient-to-br from-purple-500/10 to-pink-500/10 backdrop-blur-md p-8 rounded-3xl border border-white/60 transform md:-translate-y-4 shadow-xl relative overflow-hidden group">
-          <div class="absolute -right-4 -top-4 text-9xl opacity-10 group-hover:opacity-20 transition-opacity">🎌</div>
-          <div class="w-14 h-14 bg-pink-100 rounded-2xl flex items-center justify-center text-3xl mb-4 group-hover:rotate-12 transition-transform">🌸</div>
-          <h3 class="text-xl font-bold text-slate-800 mb-2">二次元浓度极高</h3>
-          <p class="text-slate-600 text-sm leading-relaxed">
-            番剧推荐、手办展示、甚至讨论如何用代码生成老婆。这里是绅士们的绝对领域。
-          </p>
-        </div>
-
-        <div class="bg-white/40 backdrop-blur-md p-8 rounded-3xl border border-white/50 hover:-translate-y-2 transition-transform duration-300 group">
-          <div class="w-14 h-14 bg-orange-100 rounded-2xl flex items-center justify-center text-3xl mb-4 group-hover:scale-110 transition-transform">🐱</div>
-          <h3 class="text-xl font-bold text-slate-800 mb-2">哈基米集结</h3>
-          <p class="text-slate-600 text-sm leading-relaxed">
-            不管你是技术大牛还是萌新小白，在这里都是可爱的哈基米。互帮互助，拒绝戾气。
-          </p>
-        </div>
-      </div>
-
-      <div class="mb-16">
+      <!-- 功能特性 -->
+      <section class="mb-14">
         <h2 class="text-center text-2xl font-bold text-slate-800 mb-8 flex items-center justify-center gap-2">
-          <span>⚡</span> 驱动本站的魔法阵
+          <span>✨</span> 功能特性
+        </h2>
+        <div class="grid md:grid-cols-3 gap-6">
+          <div class="bg-white/40 backdrop-blur-md p-8 rounded-3xl border border-white/50 hover:-translate-y-2 transition-transform duration-300 group">
+            <div class="w-14 h-14 bg-blue-100 rounded-2xl flex items-center justify-center text-3xl mb-4 group-hover:scale-110 transition-transform">📝</div>
+            <h3 class="text-xl font-bold text-slate-800 mb-2">内容发布</h3>
+            <p class="text-slate-600 text-sm leading-relaxed">
+              支持 Markdown 格式的帖子发布与管理，按板块分类浏览，轻松找到感兴趣的内容。
+            </p>
+          </div>
+
+          <div class="bg-gradient-to-br from-purple-500/10 to-pink-500/10 backdrop-blur-md p-8 rounded-3xl border border-white/60 transform md:-translate-y-4 shadow-xl relative overflow-hidden group">
+            <div class="w-14 h-14 bg-pink-100 rounded-2xl flex items-center justify-center text-3xl mb-4 group-hover:scale-110 transition-transform">💬</div>
+            <h3 class="text-xl font-bold text-slate-800 mb-2">实时通讯</h3>
+            <p class="text-slate-600 text-sm leading-relaxed">
+              基于 WebSocket 的即时私信与通知系统，消息零延迟，沟通无障碍。
+            </p>
+          </div>
+
+          <div class="bg-white/40 backdrop-blur-md p-8 rounded-3xl border border-white/50 hover:-translate-y-2 transition-transform duration-300 group">
+            <div class="w-14 h-14 bg-orange-100 rounded-2xl flex items-center justify-center text-3xl mb-4 group-hover:scale-110 transition-transform">🤝</div>
+            <h3 class="text-xl font-bold text-slate-800 mb-2">社交互动</h3>
+            <p class="text-slate-600 text-sm leading-relaxed">
+              好友系统、关注动态、表情搜索，构建活跃的社区氛围，让交流更有趣。
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- 技术栈 -->
+      <section class="mb-14">
+        <h2 class="text-center text-2xl font-bold text-slate-800 mb-8 flex items-center justify-center gap-2">
+          <span>⚡</span> 驱动本站的技术栈
         </h2>
         <div class="bg-white/30 backdrop-blur-xl rounded-3xl p-8 border border-white/50">
           <div class="flex flex-wrap justify-center gap-6 md:gap-10">
-            <div class="flex flex-col items-center gap-2 group cursor-pointer">
-              <div class="w-16 h-16 bg-white rounded-2xl shadow-sm flex items-center justify-center text-3xl group-hover:scale-110 transition-transform text-green-500">
-                V
+            <div v-for="tech in techStack" :key="tech.name" class="flex flex-col items-center gap-2 group cursor-pointer">
+              <div class="w-16 h-16 bg-white rounded-2xl shadow-sm flex items-center justify-center text-3xl group-hover:scale-110 transition-transform" :class="tech.color">
+                {{ tech.emoji }}
               </div>
-              <span class="text-xs font-bold text-slate-500">Vue 3</span>
+              <span class="text-xs font-bold text-slate-500">{{ tech.name }}</span>
             </div>
-            <div class="flex flex-col items-center gap-2 group cursor-pointer">
-              <div class="w-16 h-16 bg-white rounded-2xl shadow-sm flex items-center justify-center text-3xl group-hover:scale-110 transition-transform text-purple-500">
-                ⚡
-              </div>
-              <span class="text-xs font-bold text-slate-500">Vite</span>
-            </div>
-            <div class="flex flex-col items-center gap-2 group cursor-pointer">
-              <div class="w-16 h-16 bg-white rounded-2xl shadow-sm flex items-center justify-center text-3xl group-hover:scale-110 transition-transform text-blue-400">
-                🎐
-              </div>
-              <span class="text-xs font-bold text-slate-500">Tailwind</span>
-            </div>
-            <div class="flex flex-col items-center gap-2 group cursor-pointer">
-              <div class="w-16 h-16 bg-white rounded-2xl shadow-sm flex items-center justify-center text-3xl group-hover:scale-110 transition-transform text-slate-700">
-                🐍
-              </div>
-              <span class="text-xs font-bold text-slate-500">Flask</span>
-            </div>
-            <div class="flex flex-col items-center gap-2 group cursor-pointer">
-              <div class="w-16 h-16 bg-white rounded-2xl shadow-sm flex items-center justify-center text-3xl group-hover:scale-110 transition-transform text-yellow-500">
-                🔑
-              </div>
-              <span class="text-xs font-bold text-slate-500">JWT</span>
-            </div>
-          </div>
-          <div class="text-center mt-6 text-sm text-slate-500">
-            Deployed with love & caffeine ☕
           </div>
         </div>
-      </div>
+      </section>
 
-      <div class="text-center py-8 relative">
-        <div class="hajimi-dance text-6xl mb-4 inline-block cursor-pointer hover:animate-spin">
-          😸
+      <!-- 项目信息 -->
+      <section class="mb-14">
+        <h2 class="text-center text-2xl font-bold text-slate-800 mb-8 flex items-center justify-center gap-2">
+          <span>📋</span> 项目信息
+        </h2>
+        <div class="bg-white/40 backdrop-blur-xl rounded-3xl border border-white/50 overflow-hidden">
+          <div class="divide-y divide-white/30">
+            <div v-for="item in projectInfo" :key="item.label" class="flex justify-between items-center px-8 py-5">
+              <span class="text-sm text-slate-500 font-medium">{{ item.label }}</span>
+              <span class="text-sm font-bold text-slate-800">{{ item.value }}</span>
+            </div>
+          </div>
         </div>
-        <p class="text-slate-500 font-medium">加入我们，一起交流技术！</p>
-        
-        <div class="mt-6 flex justify-center gap-6">
-           <a href="#" class="px-4 py-2 rounded-full bg-slate-800 text-white text-sm font-bold hover:bg-slate-700 transition-colors flex items-center gap-2">
-             <span class="text-xl">👾</span> GitHub
-           </a>
-           <a href="#" class="px-4 py-2 rounded-full bg-pink-500 text-white text-sm font-bold hover:bg-pink-600 transition-colors flex items-center gap-2">
-             <span class="text-xl">📺</span> Bilibili
-           </a>
+      </section>
+
+      <!-- 底部链接 -->
+      <div class="text-center py-8">
+        <p class="text-slate-500 font-medium mb-6">加入我们，一起交流技术！</p>
+        <div class="flex justify-center gap-6">
+          <a href="#" class="px-4 py-2 rounded-full bg-slate-800 text-white text-sm font-bold hover:bg-slate-700 transition-colors flex items-center gap-2">
+            <span class="text-xl">👾</span> GitHub
+          </a>
+          <a href="#" class="px-4 py-2 rounded-full bg-pink-500 text-white text-sm font-bold hover:bg-pink-600 transition-colors flex items-center gap-2">
+            <span class="text-xl">📺</span> Bilibili
+          </a>
         </div>
       </div>
 
@@ -119,46 +110,20 @@
 
 <script setup>
 import appheader from '../components/appheader.vue'
+
+const techStack = [
+  { emoji: 'V', name: 'Vue 3', color: 'text-green-500' },
+  { emoji: '⚡', name: 'Vite', color: 'text-purple-500' },
+  { emoji: '🎐', name: 'Tailwind', color: 'text-blue-400' },
+  { emoji: '🐍', name: 'Flask', color: 'text-slate-700' },
+  { emoji: '🔑', name: 'JWT', color: 'text-yellow-500' },
+]
+
+const projectInfo = [
+  { label: '版本', value: 'v2.1.0' },
+  { label: '前端框架', value: 'Vue 3 + Vite + Tailwind CSS' },
+  { label: '后端框架', value: 'Flask + SQLAlchemy + SocketIO' },
+  { label: '数据库', value: 'SQLite' },
+  { label: '实时通信', value: 'WebSocket (Socket.IO)' },
+]
 </script>
-
-<style scoped>
-/* 经典的哈基米跳跃动画 */
-@keyframes hajimi-jump {
-  0%, 100% { transform: translateY(0) rotate(0deg); }
-  25% { transform: translateY(-10px) rotate(-5deg); }
-  50% { transform: translateY(0) rotate(0deg); }
-  75% { transform: translateY(-5px) rotate(5deg); }
-}
-
-.hajimi-dance {
-  animation: hajimi-jump 2s infinite ease-in-out;
-}
-
-/* 背景流动 */
-@keyframes blob {
-  0% { transform: translate(0px, 0px) scale(1); }
-  33% { transform: translate(30px, -50px) scale(1.1); }
-  66% { transform: translate(-20px, 20px) scale(0.9); }
-  100% { transform: translate(0px, 0px) scale(1); }
-}
-
-.animate-blob {
-  animation: blob 7s infinite;
-}
-
-.animation-delay-2000 {
-  animation-delay: 2s;
-}
-
-.animation-delay-4000 {
-  animation-delay: 4s;
-}
-
-@keyframes bounce-slow {
-  0%, 100% { transform: translateY(-3px); }
-  50% { transform: translateY(3px); }
-}
-.animate-bounce-slow {
-  animation: bounce-slow 3s infinite ease-in-out;
-}
-</style>
