@@ -116,9 +116,8 @@ const { formatTime } = useFormatDate()
 const { formatUrl } = useFormatUrl()
 
 const { x, y } = useDraggable(widgetRef, {
-  initialValue: { x: window.innerWidth - 80, y: window.innerHeight - 100 },
-  preventDefault: false,
-  handle: true
+  initialValue: { x: window.innerWidth - 100, y: window.innerHeight - 150 },
+  preventDefault: false
 })
 
 const styleObject = computed(() => {
