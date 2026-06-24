@@ -41,7 +41,7 @@
             </p>
           </div>
 
-          <div class="bg-gradient-to-br from-purple-500/10 to-pink-500/10 backdrop-blur-md p-8 rounded-3xl border border-white/60 transform md:-translate-y-4 shadow-xl relative overflow-hidden group">
+          <div class="bg-white/40 backdrop-blur-md p-8 rounded-3xl border border-white/50 hover:-translate-y-2 transition-transform duration-300 group relative overflow-hidden">
             <div class="w-14 h-14 bg-pink-100 rounded-2xl flex items-center justify-center text-3xl mb-4 group-hover:scale-110 transition-transform">💬</div>
             <h3 class="text-xl font-bold text-slate-800 mb-2">实时通讯</h3>
             <p class="text-slate-600 text-sm leading-relaxed">

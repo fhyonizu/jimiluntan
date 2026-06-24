@@ -4,15 +4,15 @@
     <!-- 悬浮球 -->
     <div v-if="!isExpanded"
          @mousedown="startDrag" @touchstart="startDrag" @click="toggleExpand"
-         class="w-12 h-12 rounded-full bg-gradient-to-br from-pink-500 to-purple-600 shadow-lg shadow-purple-500/40 flex items-center justify-center cursor-pointer hover:scale-110 transition-transform relative group select-none touch-none">
-       <span class="text-xl">💬</span>
-       <div v-if="totalUnread > 0" class="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full text-white text-[10px] font-bold flex items-center justify-center border-2 border-white animate-bounce">
+         class="w-14 h-14 rounded-full bg-gradient-to-br from-pink-500 to-purple-600 shadow-lg shadow-purple-500/40 flex items-center justify-center cursor-pointer hover:scale-110 transition-transform relative group select-none touch-none">
+       <span class="text-2xl">💬</span>
+       <div v-if="totalUnread > 0" class="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full text-white text-xs font-bold flex items-center justify-center border-2 border-white animate-bounce">
          {{ totalUnread }}
        </div>
     </div>
 
     <!-- 聊天窗口 -->
-    <div v-else class="w-[300px] h-[460px] bg-white rounded-2xl shadow-2xl border border-slate-200 flex flex-col overflow-hidden animate-pop-in">
+    <div v-else class="w-80 h-[500px] bg-white rounded-2xl shadow-2xl border border-slate-200 flex flex-col overflow-hidden animate-pop-in">
 
       <div @mousedown="startDrag" @touchstart="startDrag" class="h-12 bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-between pl-4 pr-2 cursor-move shrink-0 select-none touch-none">
         <span class="text-white font-bold text-sm flex items-center gap-2">
@@ -122,8 +122,8 @@ const { x, y } = useDraggable(widgetRef, {
 })
 
 const styleObject = computed(() => {
-  const w = isExpanded.value ? 300 : 48
-  const h = isExpanded.value ? 460 : 48
+  const w = isExpanded.value ? 320 : 60
+  const h = isExpanded.value ? 500 : 60
   let safeX = Math.min(Math.max(0, x.value), width.value - w)
   let safeY = Math.min(Math.max(0, y.value), height.value - h)
   return { left: `${safeX}px`, top: `${safeY}px` }
