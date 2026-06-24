@@ -4,8 +4,7 @@ import api from '@/plugins/axios'
 export const authApi = {
   login: (data) => api.post('/auth/login', data),
   register: (data) => api.post('/auth/register', data),
-  forgotPassword: (data) => api.post('/auth/forgot-password', data),
-  resetPassword: (data) => api.post('/auth/reset-password', data),
+  requestPasswordReset: (data) => api.post('/auth/request-password-reset', data),
 }
 
 // Posts
@@ -57,6 +56,10 @@ export const adminApi = {
   deletePost: (id) => api.delete(`/api/admin/posts/${id}`),
   comments: (params) => api.get('/api/admin/comments', { params }),
   deleteComment: (id) => api.delete(`/api/admin/comments/${id}`),
+  // 密码重置申请
+  passwordResets: (params) => api.get('/api/admin/password-resets', { params }),
+  approvePasswordReset: (id) => api.post(`/api/admin/password-resets/${id}/approve`),
+  rejectPasswordReset: (id) => api.post(`/api/admin/password-resets/${id}/reject`),
   // 系统升级
   systemInfo: () => api.get('/api/admin/system/info'),
   checkUpdate: () => api.get('/api/admin/system/check-update'),

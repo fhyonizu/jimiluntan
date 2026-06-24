@@ -1,8 +1,10 @@
 from flask import Blueprint, request, jsonify, current_app
+from flask_jwt_extended import get_jwt_identity
 from ..extensions import db
-from ..models import User, Post, Category, Comment, Friend, Message, PostLike, Follow
+from ..models import User, Post, Category, Comment, Friend, Message, PostLike, Follow, PasswordResetRequest
 from ..decorators import admin_required
 from sqlalchemy.orm import joinedload
+from datetime import datetime, timezone
 import subprocess
 import os
 
@@ -252,6 +254,106 @@ def del_comment(comment_id):
         db.session.rollback()
         current_app.logger.error('删除评论失败')
         return jsonify({'code': 500, 'message': '删除失败'}), 500
+
+
+# ==========================================
+# 🔑 密码重置申请管理
+# ==========================================
+@admin_bp.route('/password-resets', methods=['GET'])
+@admin_required()
+def get_password_resets():
+    """获取密码重置申请列表"""
+    status_filter = request.args.get('status', 'pending')
+    if status_filter not in ('pending', 'approved', 'rejected', 'all'):
+        status_filter = 'pending'
+
+    query = PasswordResetRequest.query.options(joinedload(PasswordResetRequest.user))
+    if status_filter != 'all':
+        query = query.filter_by(status=status_filter)
+
+    requests = query.order_by(PasswordResetRequest.timestamp.desc()).all()
+
+    data = []
+    for r in requests:
+        item = {
+            'id': r.id,
+            'user_id': r.user_id,
+            'username': r.user.username if r.user else '',
+            'email': r.user.email if r.user else '',
+            'status': r.status,
+            'timestamp': r.timestamp.isoformat() + 'Z',
+        }
+        if r.reviewer_id:
+            item['reviewer_id'] = r.reviewer_id
+        if r.reviewed_at:
+            item['reviewed_at'] = r.reviewed_at.isoformat() + 'Z'
+        data.append(item)
+
+    return jsonify({'code': 200, 'data': data}), 200
+
+
+@admin_bp.route('/password-resets/<int:req_id>/approve', methods=['POST'])
+@admin_required()
+def approve_password_reset(req_id):
+    """批准密码重置，生成临时密码"""
+    reset_req = PasswordResetRequest.query.get(req_id)
+    if not reset_req:
+        return jsonify({'code': 404, 'message': '申请不存在'}), 404
+    if reset_req.status != 'pending':
+        return jsonify({'code': 400, 'message': '该申请已处理'}), 400
+
+    user = User.query.get(reset_req.user_id)
+    if not user:
+        return jsonify({'code': 404, 'message': '用户不存在'}), 404
+
+    # 生成8位随机临时密码
+    import secrets
+    import string
+    temp_password = ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(8))
+    user.set_password(temp_password)
+
+    reset_req.status = 'approved'
+    reset_req.reviewer_id = int(get_jwt_identity())
+    reset_req.reviewed_at = datetime.now(timezone.utc)
+
+    try:
+        db.session.commit()
+        return jsonify({
+            'code': 200,
+            'message': '已批准，临时密码已生成',
+            'data': {
+                'temp_password': temp_password,
+                'username': user.username,
+                'email': user.email
+            }
+        }), 200
+    except Exception:
+        db.session.rollback()
+        current_app.logger.error('批准密码重置失败')
+        return jsonify({'code': 500, 'message': '操作失败'}), 500
+
+
+@admin_bp.route('/password-resets/<int:req_id>/reject', methods=['POST'])
+@admin_required()
+def reject_password_reset(req_id):
+    """拒绝密码重置申请"""
+    reset_req = PasswordResetRequest.query.get(req_id)
+    if not reset_req:
+        return jsonify({'code': 404, 'message': '申请不存在'}), 404
+    if reset_req.status != 'pending':
+        return jsonify({'code': 400, 'message': '该申请已处理'}), 400
+
+    reset_req.status = 'rejected'
+    reset_req.reviewer_id = int(get_jwt_identity())
+    reset_req.reviewed_at = datetime.now(timezone.utc)
+
+    try:
+        db.session.commit()
+        return jsonify({'code': 200, 'message': '已拒绝'}), 200
+    except Exception:
+        db.session.rollback()
+        current_app.logger.error('拒绝密码重置失败')
+        return jsonify({'code': 500, 'message': '操作失败'}), 500
 
 
 # ==========================================

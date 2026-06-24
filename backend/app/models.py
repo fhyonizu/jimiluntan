@@ -87,6 +87,8 @@ class Post(db.Model):
             'id': self.id,
             'title': self.title,
             'body': self.body,
+            'content_md': self.body,
+            'content_html': None,  # 由路由层注入
             'views': self.views,
             'timestamp': self.timestamp.isoformat() + 'Z',
             'tags': self.tags.split(',') if self.tags else [],
@@ -121,6 +123,8 @@ class Comment(db.Model):
         return {
             'id': self.id,
             'body': self.body,
+            'content_md': self.body,
+            'content_html': None,  # 由路由层注入
             'timestamp': self.timestamp.isoformat() + 'Z',
             'author': {
                 'id': self.author.id,
@@ -195,3 +199,17 @@ class Follow(db.Model):
     follower_id = db.Column(db.Integer, db.ForeignKey('users.id'))
     followed_id = db.Column(db.Integer, db.ForeignKey('users.id'))
     timestamp = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+
+# 9. 密码重置申请表
+class PasswordResetRequest(db.Model):
+    __tablename__ = 'password_reset_requests'
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    status = db.Column(db.String(20), default='pending')  # pending / approved / rejected
+    timestamp = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    reviewed_at = db.Column(db.DateTime, nullable=True)
+    reviewer_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+
+    user = db.relationship('User', foreign_keys=[user_id], backref='password_reset_requests')
+    reviewer = db.relationship('User', foreign_keys=[reviewer_id])

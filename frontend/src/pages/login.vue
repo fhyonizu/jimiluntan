@@ -47,9 +47,36 @@
               <input v-model="loginForm.remember" type="checkbox" class="w-4 h-4 rounded text-purple-600 focus:ring-purple-500 border-gray-300 bg-white/50">
               <span class="ml-2 text-slate-600 font-medium">记住我</span>
             </label>
+            <button type="button" @click="showResetModal = true" class="text-purple-600 font-bold hover:underline">忘记密码？</button>
           </div>
           <button type="submit" class="w-full py-3.5 px-4 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl text-sm font-bold shadow-lg shadow-purple-500/30 hover:shadow-purple-500/50 hover:scale-[1.02] active:scale-[0.98] transition-all">🚀 立即登录</button>
         </form>
+
+        <!-- 忘记密码弹窗 -->
+        <transition name="fade">
+          <div v-if="showResetModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm" @click.self="showResetModal = false">
+            <div class="bg-white rounded-3xl w-full max-w-sm shadow-2xl p-8 relative animate-pop">
+              <h2 class="text-xl font-extrabold text-slate-800 mb-2">🔑 重置密码</h2>
+              <p class="text-sm text-slate-500 mb-5">提交申请后，管理员审核通过将为您生成临时密码。</p>
+              <div class="space-y-4">
+                <div>
+                  <label class="block text-xs font-bold text-slate-500 mb-1 ml-1">注册邮箱</label>
+                  <input v-model="resetEmail" type="email" required placeholder="请输入您的注册邮箱"
+                    class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 placeholder-slate-400 focus:ring-2 focus:ring-purple-300 focus:outline-none">
+                </div>
+                <div v-if="resetResult" :class="['p-3 rounded-xl text-sm font-bold', resetSuccess ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-500']">
+                  {{ resetResult }}
+                </div>
+              </div>
+              <div class="flex gap-3 mt-6">
+                <button @click="showResetModal = false; resetResult = ''; resetEmail = ''" class="flex-1 py-3 rounded-xl font-bold text-slate-500 hover:bg-slate-100 transition-colors">取消</button>
+                <button @click="handlePasswordReset" :disabled="resetLoading" class="flex-1 py-3 rounded-xl font-bold text-white bg-gradient-to-r from-purple-500 to-pink-500 hover:shadow-lg transition-all disabled:opacity-50">
+                  {{ resetLoading ? '提交中...' : '提交申请' }}
+                </button>
+              </div>
+            </div>
+          </div>
+        </transition>
 
         <form v-else @submit.prevent="handleRegister" class="px-8 pb-8 space-y-4">
           <div class="space-y-1">
@@ -103,6 +130,26 @@ const message = ref()
 const loginForm = reactive({ email: '', password: '', remember: false })
 const registerForm = reactive({ nickname: '', email: '', password: '', passwordConfirm: '', agree: false })
 
+// 密码重置
+const showResetModal = ref(false)
+const resetEmail = ref('')
+const resetLoading = ref(false)
+const resetResult = ref('')
+const resetSuccess = ref(false)
+
+const handlePasswordReset = () => {
+  if (!resetEmail.value.trim()) { resetResult = '请输入邮箱'; resetSuccess.value = false; return }
+  resetLoading.value = true
+  resetResult = ''
+  authApi.requestPasswordReset({ email: resetEmail.value.trim() }).then(res => {
+    resetSuccess.value = true
+    resetResult = res.data.message || '申请已提交'
+  }).catch(err => {
+    resetSuccess.value = false
+    resetResult = err._message || '提交失败'
+  }).finally(() => { resetLoading.value = false })
+}
+
 const handleLogin = () => {
   authApi.login(loginForm).then(res => {
     if (res.data.code === 200) {
@@ -138,3 +185,10 @@ const handleRegister = () => {
   })
 }
 </script>
+
+<style scoped>
+.fade-enter-active, .fade-leave-active { transition: opacity 0.2s ease; }
+.fade-enter-from, .fade-leave-to { opacity: 0; }
+@keyframes popIn { 0% { transform: scale(0.9); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+.animate-pop { animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+</style>

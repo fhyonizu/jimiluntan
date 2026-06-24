@@ -13,6 +13,7 @@
         <button @click="switchView('categories')" :class="navClass('categories')">🌈 板块管理</button>
         <button @click="switchView('posts')" :class="navClass('posts')">📝 文章管理</button>
         <button @click="switchView('comments')" :class="navClass('comments')">💬 评论管理</button>
+        <button @click="switchView('resets')" :class="navClass('resets')">🔑 重置申请</button>
         <button @click="switchView('upgrade')" :class="navClass('upgrade')">🚀 系统升级</button>
       </div>
 
@@ -178,6 +179,56 @@
           </div>
         </div>
 
+        <!-- Password Reset Requests -->
+        <div v-if="currentView === 'resets'" class="animate-fade-in space-y-4">
+          <div class="flex gap-3 mb-2">
+            <button v-for="s in ['pending', 'approved', 'rejected', 'all']" :key="s" @click="resetStatusFilter = s; fetchPasswordResets()"
+              :class="['px-4 py-2 text-sm font-bold rounded-lg transition-colors', resetStatusFilter === s ? 'bg-purple-600 text-white' : 'bg-slate-800 text-slate-400 hover:bg-slate-700']">
+              {{ {pending: '待处理', approved: '已批准', rejected: '已拒绝', all: '全部'}[s] }}
+            </button>
+          </div>
+          <div class="bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden">
+            <table class="w-full text-left border-collapse">
+              <thead>
+                <tr class="bg-slate-900/50 text-slate-400 text-xs uppercase tracking-wider">
+                  <th class="p-5 font-bold">用户</th>
+                  <th class="p-5 font-bold">邮箱</th>
+                  <th class="p-5 font-bold">状态</th>
+                  <th class="p-5 font-bold">申请时间</th>
+                  <th class="p-5 font-bold text-right">操作</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-700">
+                <tr v-for="r in resetList" :key="r.id" class="hover:bg-slate-700/30 transition-colors">
+                  <td class="p-5 text-sm font-bold text-slate-200">{{ r.username }}</td>
+                  <td class="p-5 text-sm text-slate-400">{{ r.email }}</td>
+                  <td class="p-5">
+                    <span :class="['px-2 py-1 rounded text-xs font-bold', r.status === 'pending' ? 'bg-amber-500/20 text-amber-300' : r.status === 'approved' ? 'bg-green-500/20 text-green-300' : 'bg-red-500/20 text-red-300']">
+                      {{ {pending: '待处理', approved: '已批准', rejected: '已拒绝'}[r.status] }}
+                    </span>
+                  </td>
+                  <td class="p-5 text-sm text-slate-500">{{ formatDateTime(r.timestamp) }}</td>
+                  <td class="p-5 text-right space-x-2">
+                    <button v-if="r.status === 'pending'" @click="approveReset(r.id)" class="text-green-400 hover:text-green-300 text-sm font-bold bg-green-900/20 hover:bg-green-900/40 px-3 py-1.5 rounded border border-green-800/50 transition-colors">批准</button>
+                    <button v-if="r.status === 'pending'" @click="rejectReset(r.id)" class="text-red-400 hover:text-red-300 text-sm font-bold bg-red-900/20 hover:bg-red-900/40 px-3 py-1.5 rounded border border-red-800/50 transition-colors">拒绝</button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+            <div v-if="resetList.length === 0" class="p-10 text-center text-slate-500">暂无申请</div>
+          </div>
+          <!-- 批准后显示临时密码 -->
+          <div v-if="approvedResult" class="bg-green-900/30 border border-green-500/30 rounded-xl p-5">
+            <div class="text-green-400 font-bold mb-2">✅ 临时密码已生成，请将此信息告知用户：</div>
+            <div class="bg-slate-950 rounded-lg p-4 font-mono text-sm text-slate-200 space-y-1">
+              <div>用户名: <span class="text-green-400">{{ approvedResult.username }}</span></div>
+              <div>邮箱: <span class="text-green-400">{{ approvedResult.email }}</span></div>
+              <div>临时密码: <span class="text-yellow-400 text-lg font-black">{{ approvedResult.temp_password }}</span></div>
+            </div>
+            <p class="text-amber-400 text-xs mt-2">⚠️ 请妥善保管，用户首次登录后应立即修改密码</p>
+          </div>
+        </div>
+
         <!-- System Upgrade -->
         <div v-if="currentView === 'upgrade'" class="animate-fade-in space-y-6">
 
@@ -317,7 +368,10 @@ const categories = ref([])
 const userList = ref([])
 const postList = ref([])
 const commentList = ref([])
+const resetList = ref([])
 const newCat = ref({ name: '', icon: '' })
+const resetStatusFilter = ref('pending')
+const approvedResult = ref(null)
 
 // -- Upgrade State --
 const sysInfo = ref({ version: '', is_docker: false, git_available: false, git_branch: '', git_commit: '', git_dirty: false, git_remote_url: '' })
@@ -336,7 +390,7 @@ const dashboardCards = computed(() => [
 ])
 
 const viewName = computed(() => {
-  const map = { 'dashboard': '数据概览', 'users': '用户管理', 'categories': '板块管理', 'posts': '文章管理', 'comments': '评论管理', 'upgrade': '系统升级' }
+  const map = { 'dashboard': '数据概览', 'users': '用户管理', 'categories': '板块管理', 'posts': '文章管理', 'comments': '评论管理', 'resets': '重置申请', 'upgrade': '系统升级' }
   return map[currentView.value]
 })
 
@@ -357,6 +411,7 @@ const switchView = (view) => {
   if (view === 'users') fetchUsers()
   if (view === 'posts') fetchPosts()
   if (view === 'comments') fetchComments()
+  if (view === 'resets') fetchPasswordResets()
   if (view === 'categories') fetchCategories()
   if (view === 'dashboard') fetchStats()
   if (view === 'upgrade') loadSystemInfo()
@@ -393,6 +448,33 @@ const fetchComments = () => { adminApi.comments().then(res => { if (res.data.cod
 const deleteComment = (id) => {
   if (!confirm('确定删除这条评论？')) return
   adminApi.deleteComment(id).then(res => { if (res.data.code === 200) { message.value.showMessage('评论已删除'); fetchComments(); fetchStats() } })
+}
+
+// -- Password Reset APIs --
+const fetchPasswordResets = () => {
+  adminApi.passwordResets({ status: resetStatusFilter.value }).then(res => {
+    if (res.data.code === 200) resetList.value = res.data.data
+  })
+}
+const approveReset = (id) => {
+  if (!confirm('批准后将为该用户生成随机临时密码，确认？')) return
+  approvedResult.value = null
+  adminApi.approvePasswordReset(id).then(res => {
+    if (res.data.code === 200) {
+      approvedResult.value = res.data.data
+      message.value.showMessage('已批准，临时密码已生成')
+      fetchPasswordResets()
+    } else {
+      message.value.showMessage(res.data.message)
+    }
+  }).catch(err => message.value.showMessage(err._message || '操作失败'))
+}
+const rejectReset = (id) => {
+  if (!confirm('确定拒绝此申请？')) return
+  adminApi.rejectPasswordReset(id).then(res => {
+    if (res.data.code === 200) { message.value.showMessage('已拒绝'); fetchPasswordResets() }
+    else { message.value.showMessage(res.data.message) }
+  }).catch(err => message.value.showMessage(err._message || '操作失败'))
 }
 
 // -- Upgrade APIs --

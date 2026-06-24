@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify, current_app
 from ..extensions import db, limiter
-from ..models import User
+from ..models import User, PasswordResetRequest
 from flask_jwt_extended import create_access_token, decode_token
 from datetime import timedelta
 import re
@@ -109,10 +109,12 @@ def verify_email():
 
 
 # ==========================================
-# 忘记密码 — 发送重置链接
+# 密码重置 — 向管理员申请重置
 # ==========================================
-@auth_bp.route('/forgot-password', methods=['POST'])
-def forgot_password():
+@auth_bp.route('/request-password-reset', methods=['POST'])
+@limiter.limit("3 per minute")
+def request_password_reset():
+    """用户申请重置密码，需管理员审批"""
     data = request.get_json()
     if not data:
         return jsonify({'code': 400, 'message': '请求体不能为空'}), 400
@@ -124,56 +126,19 @@ def forgot_password():
     user = User.query.filter_by(email=email).first()
     if not user:
         # 不暴露用户是否存在
-        return jsonify({'code': 200, 'message': '如果该邮箱已注册，重置链接已发送'}), 200
+        return jsonify({'code': 200, 'message': '如果该邮箱已注册，重置申请已提交，请等待管理员处理'}), 200
 
-    # 生成重置 token
-    reset_token = create_access_token(
-        identity=str(user.id),
-        additional_claims={'type': 'password_reset'},
-        expires_delta=timedelta(minutes=30)
-    )
-
-    # 开发模式：打印到控制台；生产环境应发邮件
-    is_debug = current_app.debug
-    if is_debug:
-        current_app.logger.info(
-            '密码重置 (开发模式) — 邮箱: %s, Token: %s', email, reset_token
-        )
-
-    # 仅在 debug 模式返回 token
-    response = {'code': 200, 'message': '如果该邮箱已注册，重置链接已发送'}
-    if is_debug:
-        response['debug_token'] = reset_token
-    return jsonify(response), 200
-
-
-# ==========================================
-# 重置密码
-# ==========================================
-@auth_bp.route('/reset-password', methods=['POST'])
-def reset_password():
-    data = request.get_json()
-    if not data:
-        return jsonify({'code': 400, 'message': '请求体不能为空'}), 400
-
-    email = (data.get('email') or '').strip()
-    token = data.get('token') or ''
-    new_password = data.get('password') or ''
-
-    if not new_password or len(new_password) < MIN_PASSWORD:
-        return jsonify({'code': 400, 'message': f'新密码至少需要{MIN_PASSWORD}个字符'}), 400
+    # 检查是否有待处理的申请
+    existing = PasswordResetRequest.query.filter_by(user_id=user.id, status='pending').first()
+    if existing:
+        return jsonify({'code': 200, 'message': '您已有待处理的重置申请，请耐心等待管理员审核'}), 200
 
     try:
-        decoded = decode_token(token)
-        if decoded.get('type') != 'password_reset':
-            return jsonify({'code': 400, 'message': '无效的重置链接'}), 400
-
-        user = User.query.filter_by(id=decoded['sub'], email=email).first()
-        if not user:
-            return jsonify({'code': 404, 'message': '用户不存在'}), 404
-
-        user.set_password(new_password)
+        req = PasswordResetRequest(user_id=user.id)
+        db.session.add(req)
         db.session.commit()
-        return jsonify({'code': 200, 'message': '密码重置成功，请重新登录'}), 200
+        return jsonify({'code': 200, 'message': '重置申请已提交，管理员审核通过后您将可以设置新密码'}), 200
     except Exception:
-        return jsonify({'code': 400, 'message': '重置链接无效或已过期'}), 400
+        db.session.rollback()
+        current_app.logger.error('提交密码重置申请失败')
+        return jsonify({'code': 500, 'message': '提交失败，请稍后再试'}), 500

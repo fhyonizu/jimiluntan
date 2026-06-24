@@ -13,8 +13,10 @@ def create_app(config_name: str = 'default') -> Flask:
     app_config = config[config_name]
     app.config.from_object(app_config)
 
-    # CORS — 从配置读取
-    CORS(app, resources={r"/*": {"origins": app.config.get('CORS_ORIGINS', 'http://localhost:5173')}}, supports_credentials=True)
+    # CORS — 从配置读取；Docker+Nginx 同域部署时 CORS_ORIGINS 为空则不添加 CORS 头
+    cors_origins = app.config.get('CORS_ORIGINS', '')
+    if cors_origins:
+        CORS(app, resources={r"/*": {"origins": cors_origins.split(','), "supports_credentials": True}})
 
     # 数据库
     db.init_app(app)
@@ -36,8 +38,9 @@ def create_app(config_name: str = 'default') -> Flask:
     # JWT
     JWTManager(app)
 
-    # SocketIO — 从配置重置 CORS
-    socketio.cors_allowed_origins = app.config.get('SOCKETIO_CORS', '*')
+    # SocketIO — 从配置读取 CORS
+    socketio_cors = app.config.get('SOCKETIO_CORS', '')
+    socketio.cors_allowed_origins = socketio_cors.split(',') if socketio_cors else []
     socketio.init_app(app)
 
     # 缓存

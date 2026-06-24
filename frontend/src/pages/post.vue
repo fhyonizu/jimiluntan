@@ -134,7 +134,7 @@
                     <button @click="editingCommentId = null" class="text-xs bg-slate-300 text-white px-2 py-1 rounded">取消</button>
                   </div>
                 </div>
-                <div v-else class="text-slate-600 text-sm leading-relaxed break-words" v-html="renderMarkdown(comment.body)"></div>
+                <div v-else class="markdown-body comment-body text-slate-600 leading-relaxed break-words" v-html="comment.content_html || ''"></div>
               </div>
             </div>
 
@@ -179,7 +179,7 @@
                   </div>
                   <div class="flex-1 min-w-0">
                     <h3 class="text-base font-bold text-slate-800 mb-1 group-hover:text-purple-600 transition-colors">{{ thread.title }}</h3>
-                    <p class="text-xs text-slate-500 mb-2 line-clamp-2">{{ thread.body.replace(/[#*`]/g, '').slice(0, 80) }}...</p>
+                    <p class="text-xs text-slate-500 mb-2 line-clamp-2">{{ thread.excerpt }}</p>
                     <div class="flex items-center gap-3 text-xs text-slate-400">
                        <span class="font-bold text-slate-500">{{ thread.author.username }}</span>
                        <span>·</span>
@@ -212,65 +212,117 @@
     </div>
 
     <!-- 底部回复栏 -->
-    <footer v-if="isDetailMode" class="bg-white/80 backdrop-blur-xl border-t border-slate-200 p-4 z-40 transition-all pb-8">
+    <footer v-if="isDetailMode" class="reply-composer-shell z-40">
       <div class="max-w-3xl mx-auto relative">
 
-        <transition name="pop-up">
-          <div v-if="showGifPicker" class="absolute bottom-full left-0 mb-4 w-full sm:w-96 h-80 bg-white rounded-2xl shadow-2xl border border-purple-100 flex flex-col overflow-hidden z-50">
-            <div class="p-3 border-b border-slate-100 bg-slate-50 flex gap-2">
-              <input v-model="gifSearchQuery" @keyup.enter="searchGifs" placeholder="搜索 Giphy 表情..." class="flex-1 bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-purple-400 text-slate-700">
-              <button @click="searchGifs" class="text-xs bg-slate-200 hover:bg-purple-100 hover:text-purple-600 px-3 rounded-lg font-bold transition-colors">搜</button>
-            </div>
-            <div class="flex-1 overflow-y-auto p-2 grid grid-cols-2 gap-2 custom-scroll bg-slate-50/50 relative">
-               <div v-if="loadingGifs" class="absolute inset-0 flex items-center justify-center text-purple-400">
-                 <span class="animate-spin text-2xl">⏳</span>
-               </div>
-               <div v-else-if="gifs.length === 0" class="col-span-2 text-center text-slate-400 py-10 text-xs">暂无表情</div>
-               <img v-for="gif in gifs" :key="gif.id" :src="gif.images.fixed_height_small.url"
-                    @click="insertGif(gif)"
-                    class="w-full h-24 object-cover rounded-lg cursor-pointer hover:opacity-80 hover:scale-105 transition-all shadow-sm border border-slate-100 bg-slate-200">
-            </div>
-            <div class="p-1 bg-gradient-to-r from-purple-500 via-pink-500 to-yellow-500 h-1"></div>
+        <!-- 收起状态：回复按钮 -->
+        <transition name="slide-fade">
+          <div v-if="!showComposer" class="flex items-center justify-center py-3">
+            <button @click="showComposer = true" class="composer-expand-button">
+              <span class="text-lg">✍️</span>
+              <span>写回复</span>
+              <span class="text-xs opacity-60">{{ comments.length }} 条讨论</span>
+            </button>
           </div>
         </transition>
 
-        <div class="bg-white rounded-2xl shadow-lg border border-slate-200 focus-within:ring-4 focus-within:ring-purple-100 focus-within:border-purple-400 transition-all relative group overflow-hidden">
-
-          <div class="flex items-center gap-1 p-2 border-b border-slate-50 bg-slate-50/50">
-            <button @click="toggleGifPicker" :class="{'bg-purple-100 text-purple-600': showGifPicker}" class="p-1.5 rounded-lg hover:bg-slate-200 text-slate-500 transition-colors relative" title="插入表情包">
-              <span class="text-lg">🦄</span>
+        <!-- 展开状态：编辑器 -->
+        <transition name="composer-reveal">
+          <div v-if="showComposer">
+            <button @click="showComposer = false" class="composer-collapse-button" title="收起">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
             </button>
 
-            <label class="p-1.5 rounded-lg hover:bg-slate-200 text-slate-500 transition-colors cursor-pointer relative" title="上传图片">
-              <span class="text-lg">📷</span>
-              <input type="file" class="hidden" accept="image/*" @change="handleImageUpload">
-            </label>
+            <div v-if="showGifPicker" @click="showGifPicker = false" class="fixed inset-0 z-30 bg-transparent"></div>
 
-            <div class="w-px h-4 bg-slate-300 mx-1"></div>
-            <button @click="insertMarkdown('**', '**')" class="p-1.5 rounded-lg hover:bg-slate-200 text-slate-500 font-bold text-xs" title="加粗">B</button>
-            <button @click="insertMarkdown('*', '*')" class="p-1.5 rounded-lg hover:bg-slate-200 text-slate-500 italic text-xs font-serif" title="斜体">I</button>
-            <button @click="insertMarkdown('`', '`')" class="p-1.5 rounded-lg hover:bg-slate-200 text-slate-500 text-xs font-mono" title="代码">Code</button>
+            <transition name="pop-up">
+              <div v-if="showGifPicker" @mousedown.stop @click.stop class="absolute bottom-full left-0 mb-4 w-full sm:w-96 h-80 bg-white rounded-2xl shadow-2xl border border-purple-100 flex flex-col overflow-hidden z-50 picker-panel">
+                <div class="p-2 border-b border-slate-100 bg-slate-50 flex items-center gap-2">
+                  <div class="flex bg-white border border-slate-200 rounded-lg p-0.5 shrink-0">
+                    <button
+                      type="button"
+                      @click="setPickerMode('emoji')"
+                      :class="['px-2.5 py-1 rounded-md text-xs font-bold transition-all', pickerMode === 'emoji' ? 'bg-purple-100 text-purple-700 shadow-sm' : 'text-slate-500 hover:text-slate-700']">
+                      表情
+                    </button>
+                    <button
+                      type="button"
+                      @click="setPickerMode('gif')"
+                      :class="['px-2.5 py-1 rounded-md text-xs font-bold transition-all', pickerMode === 'gif' ? 'bg-purple-100 text-purple-700 shadow-sm' : 'text-slate-500 hover:text-slate-700']">
+                      动图
+                    </button>
+                  </div>
+                  <input v-if="pickerMode === 'gif'" v-model="gifSearchQuery" @keyup.enter="searchGifs" placeholder="搜索动图..." class="flex-1 min-w-0 bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-purple-400 text-slate-700">
+                  <button v-if="pickerMode === 'gif'" @click="searchGifs" class="text-xs bg-slate-200 hover:bg-purple-100 hover:text-purple-600 px-3 py-1.5 rounded-lg font-bold transition-colors">搜</button>
+                </div>
+                <div v-if="pickerMode === 'emoji'" class="flex-1 overflow-y-auto p-3 grid grid-cols-8 gap-1.5 custom-scroll bg-slate-50/50">
+                  <button
+                    v-for="emoji in quickEmojis"
+                    :key="emoji"
+                    type="button"
+                    @mousedown.prevent.stop="insertEmoji(emoji)"
+                    class="h-9 rounded-lg bg-white border border-slate-100 text-xl hover:bg-purple-50 hover:border-purple-200 hover:scale-105 active:scale-95 transition-all emoji-tile">
+                    {{ emoji }}
+                  </button>
+                </div>
+                <div v-else class="flex-1 overflow-y-auto p-2 grid grid-cols-2 gap-2 custom-scroll bg-slate-50/50 relative">
+                   <div v-if="loadingGifs" class="absolute inset-0 flex items-center justify-center text-purple-400">
+                     <span class="animate-spin text-2xl">⏳</span>
+                   </div>
+                   <div v-if="gifSource === 'builtin' && !loadingGifs" class="col-span-2 rounded-lg bg-amber-50 border border-amber-100 text-amber-700 px-2 py-1 text-xs">
+                     未配置 GIF 搜索源，当前显示内置动图库
+                   </div>
+                   <div v-if="!loadingGifs && gifSource !== 'builtin' && gifs.length === 0" class="col-span-2 text-center text-slate-400 py-10 text-xs">暂无动图</div>
+                   <img v-for="gif in gifs" :key="gif.id" :src="gif.images.fixed_height_small.url"
+                        @mousedown.prevent.stop="insertGif(gif)"
+                        class="w-full h-24 object-cover rounded-lg cursor-pointer hover:opacity-90 hover:scale-[1.03] active:scale-[0.98] transition-all duration-200 shadow-sm border border-slate-100 bg-slate-200 gif-tile">
+                </div>
+                <div class="p-1 bg-gradient-to-r from-purple-500 via-pink-500 to-yellow-500 h-1"></div>
+              </div>
+            </transition>
+
+            <div class="composer-card">
+              <div class="composer-notice">
+                <span>请保持友善讨论，支持富文本、图片和动图。</span>
+              </div>
+
+              <div class="composer-toolbar" role="toolbar" aria-label="回复工具栏">
+                <button @click="toggleGifPicker" :class="{'is-active': showGifPicker}" class="toolbar-button" title="插入表情或动图">☺</button>
+                <label class="toolbar-button cursor-pointer relative" title="上传图片">
+                  <span>↑</span>
+                  <input type="file" class="hidden" accept="image/*" @change="handleImageUpload">
+                </label>
+                <button @click="openGifPicker" :class="{'is-active': showGifPicker && pickerMode === 'gif'}" class="toolbar-button toolbar-text" title="插入动图">GIF</button>
+
+                <div class="toolbar-separator"></div>
+                <button @click="applyInlineStyle('bold')" :class="{'is-active': replyEditor?.isActive('bold')}" class="toolbar-button font-bold" title="加粗">B</button>
+                <button @click="applyInlineStyle('italic')" :class="{'is-active': replyEditor?.isActive('italic')}" class="toolbar-button italic font-serif" title="斜体">I</button>
+                <button @click="applyInlineStyle('code')" :class="{'is-active': replyEditor?.isActive('code')}" class="toolbar-button font-mono" title="代码">`</button>
+                <button @click="applyBlockStyle('heading')" :class="{'is-active': replyEditor?.isActive('heading', { level: 3 })}" class="toolbar-button font-bold" title="标题">H</button>
+                <button @click="applyBlockStyle('quote')" :class="{'is-active': replyEditor?.isActive('blockquote')}" class="toolbar-button" title="引用">❝</button>
+                <button @click="applyBlockStyle('ul')" :class="{'is-active': replyEditor?.isActive('bulletList')}" class="toolbar-button" title="项目列表">•</button>
+                <button @click="applyBlockStyle('ol')" :class="{'is-active': replyEditor?.isActive('orderedList')}" class="toolbar-button toolbar-text" title="编号列表">1.</button>
+                <button @click="applyLink" :class="{'is-active': replyEditor?.isActive('link')}" class="toolbar-button" title="链接">↗</button>
+              </div>
+
+              <div
+                v-if="replyEditor"
+                class="rich-editor w-full bg-transparent border-none text-slate-700 p-4 min-h-[112px] max-h-56 overflow-y-auto caret-purple-600 selection:bg-purple-100 selection:text-purple-700 text-sm leading-relaxed custom-scroll"
+              >
+                <EditorContent :editor="replyEditor" />
+              </div>
+
+              <div class="composer-submit">
+                 <span :class="['composer-count', replyBody.length > 0 ? 'has-content' : '']">{{ replyBody.length }} / 2000</span>
+                 <button @click="submitReply" :disabled="sending || !replyBody.trim()"
+                   class="composer-submit-button">
+                   <span v-if="sending" class="animate-spin">⏳</span>
+                   <span v-else>发送回复</span>
+                 </button>
+              </div>
+            </div>
           </div>
-
-          <textarea
-            ref="replyTextarea"
-            v-model="replyBody"
-            rows="3"
-            placeholder="友善发言，不仅是美德... (支持 Markdown / 拖拽上传图片)"
-            class="w-full bg-transparent border-none focus:ring-0 text-slate-700 placeholder-slate-400 p-4 min-h-[100px] resize-none caret-purple-600 selection:bg-purple-100 selection:text-purple-700 text-sm leading-relaxed"
-          ></textarea>
-
-          <div class="absolute bottom-3 right-3 flex items-center gap-2">
-             <span v-if="replyBody.length > 0" class="text-xs text-slate-300 font-mono">{{ replyBody.length }} chars</span>
-             <button @click="submitReply" :disabled="sending || !replyBody.trim()"
-               class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-bold rounded-xl shadow-lg shadow-purple-200 transition-all disabled:opacity-50 disabled:shadow-none hover:-translate-y-0.5 active:translate-y-0 flex items-center gap-2">
-               <span v-if="sending" class="animate-spin">⏳</span>
-               <span v-else>发送 <span class="ml-1 opacity-70">↵</span></span>
-             </button>
-          </div>
-        </div>
-
-        <div v-if="showGifPicker" @click="showGifPicker = false" class="fixed inset-0 z-40 bg-transparent"></div>
+        </transition>
       </div>
     </footer>
 
@@ -281,19 +333,39 @@
 <script setup>
 import { ref, onMounted, computed, onUnmounted, watch, inject } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useEditor, EditorContent } from '@tiptap/vue-3'
+import StarterKit from '@tiptap/starter-kit'
+import Link from '@tiptap/extension-link'
+import Image from '@tiptap/extension-image'
+import Placeholder from '@tiptap/extension-placeholder'
 import { postsApi, mainApi } from '@/api'
 import { useAuthStore } from '@/plugins/auth'
 import { useFormatDate } from '@/composables/useFormatDate'
 import { useFormatUrl } from '@/composables/useFormatUrl'
 import Showmessage from '@/components/showmessage.vue'
-import { marked } from 'marked'
-import DOMPurify from 'dompurify'
 
 const route = useRoute(); const router = useRouter(); const message = ref()
 const auth = useAuthStore()
 const openProfile = inject('openProfile')
 const { formatTimeAgo, formatTime } = useFormatDate()
 const { formatUrl } = useFormatUrl()
+
+/** 从渲染后的 HTML 或 Markdown 原文中提取纯文本摘要 */
+const toExcerpt = (contentHtml, body) => {
+  if (contentHtml) {
+    const tmp = document.createElement('div')
+    tmp.innerHTML = contentHtml
+    const text = tmp.textContent || tmp.innerText || ''
+    if (text.trim()) return text
+  }
+  if (!body) return ''
+  return body
+    .replace(/!\[.*?\]\(.*?\)/g, '')
+    .replace(/\[([^\]]*)\]\(.*?\)/g, '$1')
+    .replace(/^[#>\-\*]{1,6}\s?/gm, '')
+    .replace(/[*_`~]+/g, '')
+    .replace(/\n+/g, ' ')
+}
 
 // 核心数据
 const post = ref(null);
@@ -310,13 +382,22 @@ const progress = ref(0);
 let progressInterval = null
 
 // 回复
+const showComposer = ref(false)
 const replyBody = ref('');
 const sending = ref(false)
-const replyTextarea = ref(null)
 const showGifPicker = ref(false)
+const pickerMode = ref('emoji')
 const gifs = ref([])
+const gifSource = ref('')
 const gifSearchQuery = ref('reaction')
 const loadingGifs = ref(false)
+const quickEmojis = [
+  '😀', '😄', '😂', '🤣', '😊', '😍', '😘', '🥰',
+  '😎', '🤔', '😮', '😭', '😤', '👍', '👏', '🙏',
+  '🔥', '✨', '🎉', '💯', '❤️', '💜', '💙', '💚',
+  '👀', '💬', '🚀', '⭐', '🌈', '🍻', '☕', '🍰',
+  '🐱', '🐶', '🦄', '🍃', '⚡', '🎯', '✅', '❌'
+]
 
 // 点赞 + 编辑/删除
 const liked = ref(false)
@@ -328,10 +409,29 @@ const isDetailMode = computed(() => route.name === 'PostDetail')
 
 const renderedBody = computed(() => {
   if (!post.value) return ''
-  return DOMPurify.sanitize(marked.parse(post.value.body))
+  return post.value.content_html || ''
 })
 
-const renderMarkdown = (text) => DOMPurify.sanitize(marked.parse(text))
+const replyEditor = useEditor({
+  extensions: [
+    StarterKit,
+    Link.configure({
+      openOnClick: false,
+      HTMLAttributes: {
+        rel: 'noopener noreferrer',
+        target: '_blank',
+      },
+    }),
+    Image.configure({ inline: false }),
+    Placeholder.configure({
+      placeholder: '友善发言，不仅是美德...',
+    }),
+  ],
+  content: '',
+  onUpdate: ({ editor }) => {
+    replyBody.value = htmlToMarkdown(editor.getHTML())
+  },
+})
 
 // 进度条
 const startProgress = () => {
@@ -381,7 +481,7 @@ const loadCategoryPosts = async (catId) => {
       categoryPosts.value = res.data.data.map(p => ({
         ...p,
         author: p.author || { username: '未知', avatar: '' },
-        body: p.body || ''
+        excerpt: toExcerpt(p.content_html, p.body).slice(0, 80) + '...',
       }))
     }
   } catch(e) { console.error(e) }
@@ -414,19 +514,20 @@ const handleImageUpload = async (e) => {
   if(!file) return
   const formData = new FormData()
   formData.append('file', file)
-  insertTextAtCursor('![上传中...]()')
+  insertRichText('上传中...')
 
   try {
     const res = await mainApi.upload(formData)
     if(res.data.code === 200) {
       const fullUrl = formatUrl(res.data.url)
-      replyBody.value = replyBody.value.replace('![上传中...]()', `![image](${fullUrl})`)
+      removeUploadPlaceholder()
+      insertRichImage(fullUrl)
     } else {
-      replyBody.value = replyBody.value.replace('![上传中...]()', '')
+      removeUploadPlaceholder()
       message.value.showMessage(res.data.message)
     }
   } catch(e) {
-    replyBody.value = replyBody.value.replace('![上传中...]()', '')
+    removeUploadPlaceholder()
     message.value.showMessage('图片上传失败')
   }
 }
@@ -442,13 +543,16 @@ const fetchGifs = async (query = 'reaction') => {
   loadingGifs.value = true
   try {
     const res = await mainApi.gifs({ q: query, limit: 20 })
+    gifSource.value = res.data.source || ''
     if (res.data.code === 200 && res.data.data.length > 0) {
       gifs.value = res.data.data
     } else {
       gifs.value = fallbackGifs
+      gifSource.value = 'fallback'
     }
   } catch (e) {
     gifs.value = fallbackGifs
+    gifSource.value = 'fallback'
   } finally {
     loadingGifs.value = false
   }
@@ -456,7 +560,18 @@ const fetchGifs = async (query = 'reaction') => {
 
 const toggleGifPicker = () => {
   showGifPicker.value = !showGifPicker.value
-  if (showGifPicker.value && gifs.value.length === 0) fetchGifs()
+  if (showGifPicker.value && pickerMode.value === 'gif' && gifs.value.length === 0) fetchGifs()
+}
+
+const openGifPicker = () => {
+  pickerMode.value = 'gif'
+  showGifPicker.value = true
+  if (gifs.value.length === 0) fetchGifs()
+}
+
+const setPickerMode = (mode) => {
+  pickerMode.value = mode
+  if (mode === 'gif' && gifs.value.length === 0) fetchGifs()
 }
 
 const searchGifs = () => {
@@ -465,28 +580,121 @@ const searchGifs = () => {
 }
 
 const insertGif = (gif) => {
-  insertTextAtCursor(`![gif](${gif.images.fixed_height.url})`)
+  const url = gif?.images?.fixed_height?.url || gif?.images?.fixed_height_small?.url
+  if (!url) return
+  insertRichImage(url)
   showGifPicker.value = false
 }
 
-// Markdown 工具
-const insertMarkdown = (prefix, suffix) => {
-  const textarea = replyTextarea.value
-  if (!textarea) return
-  const start = textarea.selectionStart
-  const end = textarea.selectionEnd
-  const text = replyBody.value
-  replyBody.value = text.substring(0, start) + prefix + text.substring(start, end) + suffix + text.substring(end)
-  setTimeout(() => { textarea.focus(); textarea.setSelectionRange(start + prefix.length, end + prefix.length) }, 0)
+const insertEmoji = (emoji) => {
+  insertRichText(emoji)
 }
 
-const insertTextAtCursor = (textToInsert) => {
-  const textarea = replyTextarea.value
-  if (!textarea) { replyBody.value += textToInsert; return }
-  const start = textarea.selectionStart
-  const end = textarea.selectionEnd
-  const text = replyBody.value
-  replyBody.value = text.substring(0, start) + "\n" + textToInsert + "\n" + text.substring(end)
+// 富文本回复编辑器。提交时转换成 Markdown，由后端统一渲染和清洗。
+const focusEditor = () => {
+  replyEditor.value?.chain().focus().run()
+}
+
+const applyInlineStyle = (style) => {
+  focusEditor()
+  if (style === 'bold') replyEditor.value?.chain().focus().toggleBold().run()
+  if (style === 'italic') replyEditor.value?.chain().focus().toggleItalic().run()
+  if (style === 'code') replyEditor.value?.chain().focus().toggleCode().run()
+  syncReplyMarkdown()
+}
+
+const applyBlockStyle = (style) => {
+  focusEditor()
+  if (style === 'heading') replyEditor.value?.chain().focus().toggleHeading({ level: 3 }).run()
+  if (style === 'quote') replyEditor.value?.chain().focus().toggleBlockquote().run()
+  if (style === 'ul') replyEditor.value?.chain().focus().toggleBulletList().run()
+  if (style === 'ol') replyEditor.value?.chain().focus().toggleOrderedList().run()
+  syncReplyMarkdown()
+}
+
+const applyLink = () => {
+  focusEditor()
+  const previousUrl = replyEditor.value?.getAttributes('link').href || ''
+  const href = window.prompt('输入链接地址', previousUrl)
+  if (!href) return
+  if (href === previousUrl) return
+  replyEditor.value?.chain().focus().extendMarkRange('link').setLink({ href }).run()
+  syncReplyMarkdown()
+}
+
+const insertRichText = (text) => {
+  replyEditor.value?.chain().focus().insertContent(text).run()
+  syncReplyMarkdown()
+}
+
+const insertRichImage = (url) => {
+  replyEditor.value?.chain().focus().setImage({ src: url, alt: 'gif' }).createParagraphNear().run()
+  syncReplyMarkdown()
+}
+
+const removeUploadPlaceholder = () => {
+  const current = replyEditor.value?.getText() || ''
+  if (!current.includes('上传中...')) return
+  replyEditor.value?.commands.setContent(replyEditor.value.getHTML().replace('上传中...', ''))
+  syncReplyMarkdown()
+}
+
+const syncReplyMarkdown = () => {
+  replyBody.value = htmlToMarkdown(replyEditor.value?.getHTML() || '')
+}
+
+const nodeToMarkdown = (node) => {
+  if (node.nodeType === Node.TEXT_NODE) return node.textContent || ''
+  if (node.nodeType !== Node.ELEMENT_NODE) return ''
+
+  const el = node
+  const children = Array.from(el.childNodes).map(nodeToMarkdown).join('')
+  const tag = el.tagName.toLowerCase()
+
+  if (tag === 'br') return '\n'
+  if (tag === 'h1' || tag === 'h2' || tag === 'h3') return `### ${children.trim()}\n`
+  if (tag === 'blockquote') {
+    return children
+      .split('\n')
+      .filter(Boolean)
+      .map(line => `> ${line}`)
+      .join('\n') + '\n'
+  }
+  if (tag === 'ul') {
+    return Array.from(el.children)
+      .map(child => `- ${nodeToMarkdown(child).trim()}`)
+      .join('\n') + '\n'
+  }
+  if (tag === 'ol') {
+    return Array.from(el.children)
+      .map((child, index) => `${index + 1}. ${nodeToMarkdown(child).trim()}`)
+      .join('\n') + '\n'
+  }
+  if (tag === 'li') return children
+  if (tag === 'a') {
+    const href = el.getAttribute('href') || ''
+    return href ? `[${children || href}](${href})` : children
+  }
+  if (tag === 'strong' || tag === 'b') return `**${children}**`
+  if (tag === 'em' || tag === 'i') return `*${children}*`
+  if (tag === 'code') return `\`${children.replace(/`/g, '')}\``
+  if (tag === 'img') {
+    const src = el.getAttribute('src') || ''
+    const alt = el.getAttribute('alt') || 'image'
+    return src ? `![${alt}](${src})` : ''
+  }
+  if (tag === 'div' || tag === 'p') return `${children.trim()}\n`
+  return children
+}
+
+const htmlToMarkdown = (html) => {
+  const template = document.createElement('template')
+  template.innerHTML = html || ''
+  return Array.from(template.content.childNodes)
+    .map(nodeToMarkdown)
+    .join('')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
 }
 
 // 提交评论
@@ -498,6 +706,7 @@ const submitReply = () => {
       if(res.data.code === 200) {
         message.value.showMessage('回复成功');
         replyBody.value = '';
+        replyEditor.value?.commands.clearContent()
         loadPost(post.value.id).then(() => {
            setTimeout(() => {
               const main = document.getElementById('main-scroll')
@@ -567,7 +776,7 @@ const saveEditComment = async (comment) => {
   try {
     const res = await postsApi.editComment(post.value.id, comment.id, { body: editCommentBody.value })
     if (res.data.code === 200) {
-      comment.body = editCommentBody.value
+      Object.assign(comment, res.data.data)
       editingCommentId.value = null
       message.value.showMessage('评论已更新')
     } else {
@@ -602,7 +811,10 @@ const scrollToComment = (id) => {
   if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
 }
 
-onUnmounted(() => clearInterval(progressInterval))
+onUnmounted(() => {
+  clearInterval(progressInterval)
+  replyEditor.value?.destroy()
+})
 </script>
 
 <style scoped>
@@ -611,8 +823,264 @@ onUnmounted(() => clearInterval(progressInterval))
 .markdown-body :deep(h2) { font-size: 1.5em; font-weight: 700; margin: 0.5em 0; color: #334155; }
 .markdown-body :deep(p) { margin-bottom: 1em; line-height: 1.75; color: #475569; }
 .markdown-body :deep(img) { max-width: 100%; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); margin: 1em 0; }
+.comment-body {
+  font-size: 15.5px;
+  line-height: 1.75;
+}
+.comment-body :deep(p) {
+  margin-bottom: 0.55em;
+}
+.comment-body :deep(p:only-child) {
+  margin-bottom: 0;
+}
+.comment-body :deep(img) {
+  max-width: 240px;
+}
+.reply-composer-shell {
+  background: rgba(248, 250, 252, 0.96);
+  border-top: 1px solid #cbd5e1;
+  padding: 12px 16px 20px;
+  box-shadow: 0 -10px 30px rgba(15, 23, 42, 0.08);
+}
+.composer-card {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.12);
+  overflow: hidden;
+}
+.composer-notice {
+  background: #fffbeb;
+  border-bottom: 1px solid #fde68a;
+  color: #92400e;
+  font-size: 12px;
+  line-height: 1.4;
+  padding: 8px 12px;
+}
+.composer-toolbar {
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 5px 8px;
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+  overflow-x: auto;
+}
+.toolbar-button {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  color: #475569;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1;
+  border: 1px solid transparent;
+  background: transparent;
+  transition: color 140ms ease, background-color 140ms ease, border-color 140ms ease, transform 120ms ease;
+}
+.toolbar-button:hover {
+  color: #111827;
+  background: #e2e8f0;
+  border-color: #cbd5e1;
+}
+.toolbar-button:active {
+  transform: translateY(1px);
+}
+.toolbar-button.is-active {
+  color: #6d28d9;
+  background: #ede9fe;
+  border-color: #c4b5fd;
+}
+.toolbar-text {
+  font-size: 11px;
+}
+.toolbar-separator {
+  width: 1px;
+  height: 22px;
+  background: #cbd5e1;
+  margin: 0 5px;
+  flex: 0 0 auto;
+}
+.rich-editor {
+  min-height: 128px;
+  max-height: 260px;
+  overflow-y: auto;
+  background: #ffffff;
+  padding: 0;
+}
+.rich-editor :deep(.ProseMirror) {
+  min-height: 128px;
+  padding: 14px 16px 18px;
+  outline: none;
+  color: #334155;
+  font-size: 14px;
+  line-height: 1.65;
+}
+.rich-editor :deep(.ProseMirror p.is-editor-empty:first-child::before) {
+  content: attr(data-placeholder);
+  color: #94a3b8;
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+.rich-editor :deep(.ProseMirror p) {
+  margin: 0 0 0.65rem;
+}
+.rich-editor :deep(.ProseMirror h3) {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0.35rem 0 0.6rem;
+}
+.rich-editor :deep(.ProseMirror blockquote) {
+  border-left: 3px solid #a78bfa;
+  padding-left: 0.85rem;
+  color: #64748b;
+  margin: 0.65rem 0;
+}
+.rich-editor :deep(.ProseMirror ul),
+.rich-editor :deep(.ProseMirror ol) {
+  padding-left: 1.35rem;
+  margin: 0.65rem 0;
+}
+.rich-editor :deep(.ProseMirror ul) { list-style: disc; }
+.rich-editor :deep(.ProseMirror ol) { list-style: decimal; }
+.rich-editor :deep(.ProseMirror a) {
+  color: #6d28d9;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.rich-editor :deep(.ProseMirror img) {
+  max-width: 220px;
+  max-height: 150px;
+  object-fit: cover;
+  border-radius: 8px;
+  display: block;
+  margin: 0.65rem 0;
+  border: 1px solid #cbd5e1;
+}
+.rich-editor :deep(.ProseMirror code) {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.86em;
+  background: #f1f5f9;
+  color: #6d28d9;
+  padding: 0.1rem 0.3rem;
+  border-radius: 0.3rem;
+}
+.composer-submit {
+  min-height: 48px;
+  padding: 8px 10px;
+  border-top: 1px solid #e2e8f0;
+  background: #f8fafc;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+.composer-count {
+  font-size: 11px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  color: #94a3b8;
+}
+.composer-count.has-content {
+  color: #64748b;
+}
+.composer-submit-button {
+  min-width: 92px;
+  height: 34px;
+  border-radius: 6px;
+  background: #6d28d9;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 14px;
+  transition: background-color 140ms ease, transform 120ms ease, opacity 140ms ease;
+}
+.composer-submit-button:hover {
+  background: #5b21b6;
+}
+.composer-submit-button:active {
+  transform: translateY(1px);
+}
+.composer-submit-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
 .animate-fade-in { animation: fadeIn 400ms var(--ease-apple) both; }
 @keyframes fadeIn { from { opacity: 0; transform: translateY(16px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
-.pop-up-enter-active, .pop-up-leave-active { transition: all 350ms var(--ease-spring); }
-.pop-up-enter-from, .pop-up-leave-to { opacity: 0; transform: translateY(16px) scale(0.92); }
+.picker-panel {
+  transform-origin: left bottom;
+  will-change: opacity, transform;
+}
+.pop-up-enter-active { transition: opacity 180ms var(--ease-smooth), transform 220ms var(--ease-smooth); }
+.pop-up-leave-active { transition: opacity 140ms var(--ease-smooth), transform 160ms var(--ease-smooth); }
+.pop-up-enter-from, .pop-up-leave-to { opacity: 0; transform: translateY(8px) scale(0.98); }
+.emoji-tile, .gif-tile { will-change: transform; }
+
+/* 回复按钮 - 收起状态 */
+.composer-expand-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 28px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #6d28d9, #7c3aed);
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 800;
+  box-shadow: 0 4px 16px rgba(109, 40, 217, 0.35);
+  transition: transform 160ms ease, box-shadow 160ms ease, background 160ms ease;
+  cursor: pointer;
+}
+.composer-expand-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 24px rgba(109, 40, 217, 0.45);
+}
+.composer-expand-button:active {
+  transform: translateY(0.5px) scale(0.98);
+}
+
+/* 收起按钮 */
+.composer-collapse-button {
+  position: absolute;
+  top: -14px;
+  right: 12px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #64748b;
+  cursor: pointer;
+  transition: background 140ms, color 140ms, transform 140ms;
+  z-index: 10;
+}
+.composer-collapse-button:hover {
+  background: #e2e8f0;
+  color: #334155;
+  transform: scale(1.08);
+}
+.composer-collapse-button:active {
+  transform: scale(0.95);
+}
+
+/* 展开/收起动画 */
+.slide-fade-enter-active { transition: opacity 200ms ease, transform 200ms ease; }
+.slide-fade-leave-active { transition: opacity 120ms ease, transform 120ms ease; }
+.slide-fade-enter-from, .slide-fade-leave-to { opacity: 0; transform: translateY(8px); }
+
+.composer-reveal-enter-active { transition: opacity 260ms ease, transform 300ms cubic-bezier(0.34, 1.56, 0.64, 1); }
+.composer-reveal-leave-active { transition: opacity 140ms ease, transform 160ms ease; }
+.composer-reveal-enter-from, .composer-reveal-leave-to { opacity: 0; transform: translateY(20px) scale(0.97); }
 </style>

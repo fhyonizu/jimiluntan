@@ -1,6 +1,7 @@
 from flask import Blueprint, request, jsonify, current_app
 from ..extensions import db, cache
 from ..models import Post, User, Category, Comment, PostLike
+from backend.utils.markdown_render import render_markdown
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from sqlalchemy import func
 from sqlalchemy.orm import joinedload
@@ -11,6 +12,18 @@ MAX_PER_PAGE = 50
 MAX_TITLE_LEN = 128
 MAX_BODY_LEN = 10000
 MAX_COMMENT_LEN = 2000
+
+
+def get_current_user_id():
+    identity = get_jwt_identity()
+    return int(identity) if identity is not None else None
+
+
+def serialize_comment(comment):
+    data = comment.to_dict()
+    data['content_md'] = comment.body
+    data['content_html'] = render_markdown(comment.body)
+    return data
 
 
 @posts_bp.route('/', methods=['GET'])
@@ -45,9 +58,16 @@ def get_posts():
     for p in posts:
         p._likes_count = likes_map.get(p.id, 0)
 
+    # 渲染 content_html（列表也需要渲染后的摘要）
+    results = []
+    for p in posts:
+        d = p.to_dict()
+        d['content_html'] = render_markdown(p.body)
+        results.append(d)
+
     return jsonify({
         'code': 200,
-        'data': [post.to_dict() for post in posts],
+        'data': results,
         'total': pagination.total,
         'pages': pagination.pages,
         'current_page': page
@@ -77,7 +97,9 @@ def get_post_detail(post_id):
     post._likes_count = likes
 
     post_data = post.to_dict()
-    post_data['comments'] = [c.to_dict() for c in comments]
+    post_data['content_md'] = post.body
+    post_data['content_html'] = render_markdown(post.body)
+    post_data['comments'] = [serialize_comment(c) for c in comments]
     return jsonify({'code': 200, 'data': post_data}), 200
 
 
@@ -88,8 +110,8 @@ def update_post(post_id):
     if not post:
         return jsonify({'code': 404, 'message': '帖子不存在'}), 404
 
-    current_user_id = get_jwt_identity()
-    user = User.query.get(int(current_user_id))
+    current_user_id = get_current_user_id()
+    user = User.query.get(current_user_id)
     if not user or (post.user_id != current_user_id and user.role != 'admin'):
         return jsonify({'code': 403, 'message': '无权编辑此帖子'}), 403
 
@@ -133,8 +155,8 @@ def delete_post(post_id):
     if not post:
         return jsonify({'code': 404, 'message': '帖子不存在'}), 404
 
-    current_user_id = get_jwt_identity()
-    user = User.query.get(int(current_user_id))
+    current_user_id = get_current_user_id()
+    user = User.query.get(current_user_id)
     if not user or (post.user_id != current_user_id and user.role != 'admin'):
         return jsonify({'code': 403, 'message': '无权删除此帖子'}), 403
 
@@ -165,11 +187,11 @@ def add_comment(post_id):
     if len(body) > MAX_COMMENT_LEN:
         return jsonify({'code': 400, 'message': f'评论不能超过{MAX_COMMENT_LEN}个字符'}), 400
 
-    new_comment = Comment(body=body, post_id=post_id, user_id=get_jwt_identity())
+    new_comment = Comment(body=body, post_id=post_id, user_id=get_current_user_id())
     try:
         db.session.add(new_comment)
         db.session.commit()
-        return jsonify({'code': 200, 'message': '评论成功！', 'data': new_comment.to_dict()}), 200
+        return jsonify({'code': 200, 'message': '评论成功！', 'data': serialize_comment(new_comment)}), 200
     except Exception as e:
         db.session.rollback()
         current_app.logger.error('添加评论失败')
@@ -187,8 +209,8 @@ def edit_comment(post_id, comment_id):
     if not comment:
         return jsonify({'code': 404, 'message': '评论不存在'}), 404
 
-    current_user_id = get_jwt_identity()
-    user = User.query.get(int(current_user_id))
+    current_user_id = get_current_user_id()
+    user = User.query.get(current_user_id)
     if not user or (comment.user_id != current_user_id and user.role != 'admin'):
         return jsonify({'code': 403, 'message': '无权编辑此评论'}), 403
 
@@ -205,7 +227,7 @@ def edit_comment(post_id, comment_id):
     comment.body = body
     try:
         db.session.commit()
-        return jsonify({'code': 200, 'message': '评论已更新', 'data': comment.to_dict()}), 200
+        return jsonify({'code': 200, 'message': '评论已更新', 'data': serialize_comment(comment)}), 200
     except Exception as e:
         db.session.rollback()
         current_app.logger.error('更新评论失败')
@@ -219,8 +241,8 @@ def delete_comment(post_id, comment_id):
     if not comment:
         return jsonify({'code': 404, 'message': '评论不存在'}), 404
 
-    current_user_id = get_jwt_identity()
-    user = User.query.get(int(current_user_id))
+    current_user_id = get_current_user_id()
+    user = User.query.get(current_user_id)
     if not user or (comment.user_id != current_user_id and user.role != 'admin'):
         return jsonify({'code': 403, 'message': '无权删除此评论'}), 403
 
@@ -266,9 +288,15 @@ def search_posts():
     for p in pagination.items:
         p._likes_count = likes_map.get(p.id, 0)
 
+    search_results = []
+    for p in pagination.items:
+        d = p.to_dict()
+        d['content_html'] = render_markdown(p.body)
+        search_results.append(d)
+
     return jsonify({
         'code': 200,
-        'data': [post.to_dict() for post in pagination.items],
+        'data': search_results,
         'total': pagination.total,
         'pages': pagination.pages
     }), 200
@@ -285,7 +313,7 @@ def toggle_like(post_id):
     if not post:
         return jsonify({'code': 404, 'message': '帖子不存在'}), 404
 
-    current_user_id = get_jwt_identity()
+    current_user_id = get_current_user_id()
     existing = PostLike.query.filter_by(user_id=current_user_id, post_id=post_id).first()
     try:
         if existing:
@@ -305,15 +333,13 @@ def toggle_like(post_id):
 
 
 @posts_bp.route('/<int:post_id>/like', methods=['GET'])
+@jwt_required(optional=True)
 def get_likes(post_id):
     count = PostLike.query.filter_by(post_id=post_id).count()
     liked = False
-    try:
-        current_user_id = get_jwt_identity()
-        if current_user_id:
-            liked = PostLike.query.filter_by(user_id=current_user_id, post_id=post_id).first() is not None
-    except Exception:
-        pass
+    current_user_id = get_current_user_id()
+    if current_user_id:
+        liked = PostLike.query.filter_by(user_id=current_user_id, post_id=post_id).first() is not None
     return jsonify({'code': 200, 'data': {'count': count, 'liked': liked}}), 200
 
 
@@ -339,7 +365,7 @@ def create_post():
     if len(body) > MAX_BODY_LEN:
         return jsonify({'code': 400, 'message': f'内容不能超过{MAX_BODY_LEN}个字符'}), 400
 
-    current_user_id = get_jwt_identity()
+    current_user_id = get_current_user_id()
     user = User.query.get(current_user_id)
 
     if not user:

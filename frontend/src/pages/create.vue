@@ -31,23 +31,27 @@
               <div class="w-px h-4 bg-slate-300 mx-1"></div>
 
               <div class="relative">
-                <button @click="showEmoji = !showEmoji" :class="btnClass + ' text-lg'" title="表情">😀</button>
-                <div v-if="showEmoji" class="absolute top-10 left-0 z-50 shadow-2xl rounded-xl overflow-hidden">
-                  <div class="fixed inset-0 z-40" @click="showEmoji = false"></div>
+                <button type="button" @click="toggleEmojiPicker" :class="btnClass + ' text-lg'" title="表情">😀</button>
+                <div v-if="showEmoji" class="fixed inset-0 z-40" @click="showEmoji = false"></div>
+                <transition name="picker-pop">
+                <div v-if="showEmoji" @mousedown.stop @click.stop class="absolute top-10 left-0 z-50 shadow-2xl rounded-xl overflow-hidden picker-popover">
                   <EmojiPicker :native="true" @select="onSelectEmoji" />
                 </div>
+                </transition>
               </div>
 
               <div class="relative">
-                <button @click="showGif = !showGif" :class="btnClass + ' text-lg'" title="GIF">🐱</button>
-                <div v-if="showGif" class="absolute top-10 left-0 z-50 w-64 bg-white/90 backdrop-blur-xl shadow-2xl rounded-xl p-3 border border-white/50">
-                  <div class="fixed inset-0 z-40" @click="showGif = false"></div>
+                <button type="button" @click="toggleGifPicker" :class="btnClass + ' text-lg'" title="GIF">🐱</button>
+                <div v-if="showGif" class="fixed inset-0 z-40" @click="showGif = false"></div>
+                <transition name="picker-pop">
+                <div v-if="showGif" @mousedown.stop @click.stop class="absolute top-10 left-0 z-50 w-64 bg-white/90 backdrop-blur-xl shadow-2xl rounded-xl p-3 border border-white/50 picker-popover">
                   <div class="grid grid-cols-3 gap-2">
                     <img v-for="(gif, i) in catGifs" :key="i" :src="gif"
-                      @click="insertImage(gif)"
-                      class="w-full h-16 object-cover rounded-lg cursor-pointer hover:scale-105 transition-transform border border-slate-200">
+                      @mousedown.prevent.stop="insertImage(gif)"
+                      class="w-full h-16 object-cover rounded-lg cursor-pointer hover:scale-[1.03] active:scale-[0.98] transition-transform duration-200 border border-slate-200">
                   </div>
                 </div>
+                </transition>
               </div>
 
               <div class="w-px h-4 bg-slate-300 mx-1"></div>
@@ -56,6 +60,7 @@
 
             <textarea
               id="editor-textarea"
+              ref="editorTextarea"
               v-model="form.body"
               placeholder="在这里写下你的魔法吟唱..."
               class="w-full flex-1 p-5 bg-transparent border-none rounded-b-2xl text-base text-slate-700 placeholder-slate-400 focus:ring-0 resize-none outline-none font-mono leading-relaxed h-96"></textarea>
@@ -128,7 +133,7 @@
 </template>
 
 <script setup>
-import { reactive, ref, computed, onMounted } from 'vue'
+import { reactive, ref, computed, onMounted, nextTick } from 'vue'
 import { postsApi } from '@/api'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/plugins/auth'
@@ -138,7 +143,7 @@ import DOMPurify from 'dompurify'
 import EmojiPicker from 'vue3-emoji-picker'
 import 'vue3-emoji-picker/css'
 
-const router = useRouter(); const route = useRoute(); const message = ref(); const loading = ref(false); const showEmoji = ref(false); const showGif = ref(false)
+const router = useRouter(); const route = useRoute(); const message = ref(); const loading = ref(false); const showEmoji = ref(false); const showGif = ref(false); const editorTextarea = ref(null)
 const auth = useAuthStore()
 
 const btnClass = "px-2 py-1 rounded hover:bg-purple-100 text-slate-600 font-bold transition-colors text-sm"
@@ -193,13 +198,27 @@ onMounted(() => {
   }
 })
 
-const insertFormat = (prefix, suffix) => {
-  const textarea = document.getElementById('editor-textarea'); const start = textarea.selectionStart; const end = textarea.selectionEnd
-  form.body = form.body.substring(0, start) + prefix + form.body.substring(start, end) + suffix + form.body.substring(end)
-  setTimeout(() => {
+const toggleEmojiPicker = () => {
+  showEmoji.value = !showEmoji.value
+  if (showEmoji.value) showGif.value = false
+}
+
+const toggleGifPicker = () => {
+  showGif.value = !showGif.value
+  if (showGif.value) showEmoji.value = false
+}
+
+const insertFormat = async (prefix, suffix = '') => {
+  const textarea = editorTextarea.value
+  const text = form.body
+  const start = textarea ? textarea.selectionStart : text.length
+  const end = textarea ? textarea.selectionEnd : text.length
+  form.body = text.substring(0, start) + prefix + text.substring(start, end) + suffix + text.substring(end)
+  await nextTick()
+  if (textarea) {
     textarea.focus()
     textarea.setSelectionRange(start + prefix.length, end + prefix.length)
-  }, 0)
+  }
 }
 const onSelectEmoji = (emoji) => { insertFormat(emoji.i, ''); showEmoji.value = false }
 const insertImage = (url) => { insertFormat(`\n![GIF](${url})\n`, ''); showGif.value = false }
@@ -238,4 +257,8 @@ const handleSubmit = () => {
 .custom-scroll::-webkit-scrollbar-track { background: transparent; }
 .custom-scroll::-webkit-scrollbar-thumb { background: rgba(139, 92, 246, 0.2); border-radius: 10px; }
 .custom-scroll::-webkit-scrollbar-thumb:hover { background: rgba(139, 92, 246, 0.4); }
+.picker-popover { transform-origin: left top; will-change: opacity, transform; }
+.picker-pop-enter-active { transition: opacity 180ms var(--ease-smooth), transform 220ms var(--ease-smooth); }
+.picker-pop-leave-active { transition: opacity 130ms var(--ease-smooth), transform 150ms var(--ease-smooth); }
+.picker-pop-enter-from, .picker-pop-leave-to { opacity: 0; transform: translateY(-6px) scale(0.98); }
 </style>

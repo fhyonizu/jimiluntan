@@ -150,12 +150,6 @@ def get_notices():
     return jsonify({'code': 200, 'data': data}), 200
 
 
-# ==========================================
-# 4. GIF 搜索代理
-# ==========================================
-GIPHY_API_KEY = os.environ.get('GIPHY_API_KEY')
-TENOR_API_KEY = os.environ.get('TENOR_API_KEY')
-
 FREE_GIFS = [
     {"id": "free_001", "images": {"fixed_height_small": {"url": "https://media.giphy.com/media/JIX9t2j0ZTN9S/200w.gif"}, "fixed_height": {"url": "https://media.giphy.com/media/JIX9t2j0ZTN9S/giphy.gif"}}},
     {"id": "free_002", "images": {"fixed_height_small": {"url": "https://media.giphy.com/media/8Iv5lqKwKsZ2g/200w.gif"}, "fixed_height": {"url": "https://media.giphy.com/media/8Iv5lqKwKsZ2g/giphy.gif"}}},
@@ -186,13 +180,15 @@ MAX_GIF_LIMIT = 30
 def proxy_gifs():
     query = (request.args.get('q', 'reaction') or '').strip()[:100]  # 限制搜索词长度
     limit = min(request.args.get('limit', 20, type=int), MAX_GIF_LIMIT)
+    giphy_api_key = os.environ.get('GIPHY_API_KEY')
+    tenor_api_key = os.environ.get('TENOR_API_KEY')
 
     # 1. Giphy
-    if GIPHY_API_KEY:
+    if giphy_api_key:
         try:
             resp = http_requests.get(
                 'https://api.giphy.com/v1/gifs/search',
-                params={'api_key': GIPHY_API_KEY, 'q': query, 'limit': limit, 'rating': 'g'},
+                params={'api_key': giphy_api_key, 'q': query, 'limit': limit, 'rating': 'g'},
                 timeout=5
             )
             if resp.status_code == 200:
@@ -203,11 +199,11 @@ def proxy_gifs():
             current_app.logger.warning('Giphy 请求失败: %s', e)
 
     # 2. Tenor
-    if TENOR_API_KEY:
+    if tenor_api_key:
         try:
             resp = http_requests.get(
                 'https://tenor.googleapis.com/v2/search',
-                params={'key': TENOR_API_KEY, 'q': query, 'limit': limit, 'media_filter': 'gif,tinygif'},
+                params={'key': tenor_api_key, 'q': query, 'limit': limit, 'media_filter': 'gif,tinygif'},
                 timeout=5
             )
             if resp.status_code == 200:
@@ -232,4 +228,9 @@ def proxy_gifs():
     rng = random.Random(query if query else 'cat')
     result = FREE_GIFS.copy()
     rng.shuffle(result)
-    return jsonify({'code': 200, 'data': result[:limit], 'source': 'builtin'}), 200
+    return jsonify({
+        'code': 200,
+        'data': result[:limit],
+        'source': 'builtin',
+        'message': '未配置 GIPHY_API_KEY 或 TENOR_API_KEY，当前显示内置动图库'
+    }), 200

@@ -242,6 +242,25 @@ const route = useRoute()
 const { formatTimeAgo } = useFormatDate()
 const { formatUrl } = useFormatUrl()
 
+/** 从渲染后的 HTML 或 Markdown 原文中提取纯文本摘要 */
+const toExcerpt = (contentHtml, body) => {
+  // 优先用后端渲染的 HTML 提取纯文本
+  if (contentHtml) {
+    const tmp = document.createElement('div')
+    tmp.innerHTML = contentHtml
+    const text = tmp.textContent || tmp.innerText || ''
+    if (text.trim()) return text
+  }
+  // fallback：把 Markdown 粗转成纯文本（去标记符号和图片语法）
+  if (!body) return ''
+  return body
+    .replace(/!\[.*?\]\(.*?\)/g, '')     // 去图片
+    .replace(/\[([^\]]*)\]\(.*?\)/g, '$1') // 链接只保留文字
+    .replace(/^[#>\-\*]{1,6}\s?/gm, '')   // 去标题/引用/列表标记
+    .replace(/[*_`~]+/g, '')               // 去加粗/斜体/代码标记
+    .replace(/\n+/g, ' ')                  // 换行变空格
+}
+
 // 路由守卫消息
 const routeMsg = ref('')
 if (route.query.msg) {
@@ -330,7 +349,7 @@ const fetchPosts = async (isReset = false) => {
         id: post.id,
         categoryId: post.category ? post.category.id : null,
         title: post.title,
-        excerpt: (post.body || '').slice(0, 60).replace(/[#*`]/g, '') + '...',
+        excerpt: toExcerpt(post.content_html, post.body).slice(0, 60) + '...',
         author: post.author.username,
         avatar: post.author.avatar,
         timestamp: post.timestamp,
@@ -410,7 +429,7 @@ const searchPosts = async (q) => {
         id: post.id,
         categoryId: post.category ? post.category.id : null,
         title: post.title,
-        excerpt: (post.body || '').slice(0, 60).replace(/[#*`]/g, '') + '...',
+        excerpt: toExcerpt(post.content_html, post.body).slice(0, 60) + '...',
         author: post.author.username,
         avatar: post.author.avatar,
         timestamp: post.timestamp,

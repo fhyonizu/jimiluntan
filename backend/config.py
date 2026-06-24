@@ -1,7 +1,9 @@
 import os
 from datetime import timedelta, timezone
+from dotenv import load_dotenv
 
 basedir = os.path.abspath(os.path.dirname(__file__))
+load_dotenv(os.path.join(os.path.dirname(basedir), '.env'))
 
 
 class Config:
@@ -34,10 +36,10 @@ class Config:
     RATELIMIT_STRATEGY = 'fixed-window'
 
     # ==================== CORS ====================
-    CORS_ORIGINS = os.environ.get('CORS_ORIGINS', 'http://localhost:5173')
+    CORS_ORIGINS = os.environ.get('CORS_ORIGINS', '')
 
     # ==================== SocketIO ====================
-    SOCKETIO_CORS = os.environ.get('SOCKETIO_CORS', 'http://localhost:5173')
+    SOCKETIO_CORS = os.environ.get('SOCKETIO_CORS', '')
 
 
 class ProductionConfig(Config):
@@ -48,11 +50,9 @@ class ProductionConfig(Config):
     def validate(cls) -> None:
         """生产环境必须设置真实密钥"""
         if cls.SECRET_KEY == 'dev-secret-key-change-this':
-            import warnings
-            warnings.warn('⚠️  生产环境使用了默认 SECRET_KEY，请设置环境变量！', RuntimeWarning)
+            raise RuntimeError('⚠️  生产环境必须设置 SECRET_KEY 环境变量！')
         if cls.JWT_SECRET_KEY == 'jwt-secret-key-change-this':
-            import warnings
-            warnings.warn('⚠️  生产环境使用了默认 JWT_SECRET_KEY，请设置环境变量！', RuntimeWarning)
+            raise RuntimeError('⚠️  生产环境必须设置 JWT_SECRET_KEY 环境变量！')
 
 
 config = {

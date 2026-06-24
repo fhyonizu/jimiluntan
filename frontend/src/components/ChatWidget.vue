@@ -14,13 +14,22 @@
     <!-- 聊天窗口 -->
     <div v-else class="w-80 h-[500px] bg-white rounded-2xl shadow-2xl border border-slate-200 flex flex-col overflow-hidden animate-pop-in">
 
-      <div @mousedown="startDrag" @touchstart="startDrag" class="h-10 bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-between px-4 cursor-move shrink-0 select-none touch-none">
+      <div @mousedown="startDrag" @touchstart="startDrag" class="h-12 bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-between pl-4 pr-2 cursor-move shrink-0 select-none touch-none">
         <span class="text-white font-bold text-sm flex items-center gap-2">
            <span v-if="currentChatUser" @click.stop="openProfile(currentChatUser.id)" class="truncate max-w-[150px] cursor-pointer hover:underline">{{ currentChatUser.username }}</span>
            <span v-else>消息中心</span>
         </span>
-        <div class="flex items-center gap-2">
-           <button @click.stop="isExpanded = false" class="text-white/80 hover:text-white text-lg font-bold leading-none px-2">_</button>
+        <div class="flex items-center justify-center">
+           <button
+             type="button"
+             @mousedown.stop
+             @touchstart.stop
+             @click.stop="isExpanded = false"
+             class="minimize-btn"
+             aria-label="收起聊天窗口"
+             title="收起">
+             <span></span>
+           </button>
         </div>
       </div>
 
@@ -226,3 +235,44 @@ onMounted(() => {
   }
 })
 </script>
+
+<style scoped>
+.minimize-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 9999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  cursor: pointer;
+  transition: transform 160ms var(--ease-smooth), background-color 160ms var(--ease-smooth), border-color 160ms var(--ease-smooth), box-shadow 160ms var(--ease-smooth);
+}
+
+.minimize-btn span {
+  width: 14px;
+  height: 2px;
+  border-radius: 9999px;
+  background: currentColor;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+.minimize-btn:hover {
+  background: rgba(255, 255, 255, 0.24);
+  border-color: rgba(255, 255, 255, 0.36);
+  box-shadow: 0 6px 16px rgba(88, 28, 135, 0.22);
+  transform: translateY(-1px) scale(1.04);
+}
+
+.minimize-btn:active {
+  transform: translateY(0) scale(0.94);
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.minimize-btn:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.9);
+  outline-offset: 2px;
+}
+</style>

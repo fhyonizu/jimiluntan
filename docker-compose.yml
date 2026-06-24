@@ -18,7 +18,7 @@ services:
       - SECRET_KEY=${SECRET_KEY}
       - JWT_SECRET_KEY=${JWT_SECRET_KEY}
       - FLASK_DEBUG=0
-      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost}
+      - CORS_ORIGINS=${CORS_ORIGINS:-}
       - GIPHY_API_KEY=${GIPHY_API_KEY}
       - TENOR_API_KEY=${TENOR_API_KEY}
     healthcheck:
