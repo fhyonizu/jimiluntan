@@ -15,6 +15,7 @@ FROM python:3.12-slim
 # 安装系统依赖 + git（升级功能需要） + node（前端构建需要） + supervisord
 RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
+    curl \
     nodejs \
     npm \
     supervisor \
@@ -53,7 +54,10 @@ RUN mkdir -p /app/backend/app/static/uploads && \
 # 环境变量
 ENV FLASK_DEBUG=0 \
     PYTHONPATH=/app \
-    DATABASE_URL=sqlite:////app/data/forum.db
+    DB_HOST=db \
+    DB_PORT=3306 \
+    DB_NAME=jimiluntan \
+    DB_USER=jimiluntan
 
 # 暴露端口（Nginx 代理）
 EXPOSE 80

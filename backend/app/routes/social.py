@@ -2,7 +2,7 @@ from flask import Blueprint, request, jsonify, current_app
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from ..models import User, Friend, Message, Follow
 from ..extensions import db, socketio
-from sqlalchemy import or_, and_, func
+from sqlalchemy import or_, and_, case, func
 from sqlalchemy.orm import joinedload
 from datetime import datetime, timezone
 
@@ -130,6 +130,15 @@ def get_friends():
     friend_users = {u.id: u for u in User.query.filter(User.id.in_(friend_ids)).all()}
 
     # 使用窗口函数获取每个对话的最后一条消息
+    pair_low = case(
+        (Message.sender_id < Message.receiver_id, Message.sender_id),
+        else_=Message.receiver_id
+    )
+    pair_high = case(
+        (Message.sender_id < Message.receiver_id, Message.receiver_id),
+        else_=Message.sender_id
+    )
+
     subq = db.session.query(
         Message.id,
         Message.sender_id,
@@ -137,7 +146,7 @@ def get_friends():
         Message.body,
         Message.timestamp,
         func.row_number().over(
-            partition_by=func.least(Message.sender_id, Message.receiver_id),
+            partition_by=(pair_low, pair_high),
             order_by=Message.timestamp.desc()
         ).label('rn')
     ).filter(
@@ -181,7 +190,8 @@ def get_friends():
 
         is_online = False
         if friend_user.last_seen:
-            diff = datetime.now(timezone.utc) - friend_user.last_seen
+            last_seen_utc = friend_user.last_seen.replace(tzinfo=timezone.utc) if friend_user.last_seen.tzinfo is None else friend_user.last_seen
+            diff = datetime.now(timezone.utc) - last_seen_utc
             if diff.total_seconds() < 300:
                 is_online = True
 
