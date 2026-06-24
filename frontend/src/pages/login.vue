@@ -78,7 +78,7 @@
           </div>
         </transition>
 
-        <form v-else @submit.prevent="handleRegister" class="px-8 pb-8 space-y-4">
+        <form v-if="mode !== 'login'" @submit.prevent="handleRegister" class="px-8 pb-8 space-y-4">
           <div class="space-y-1">
             <label class="block text-xs font-bold text-slate-500 ml-1">昵称</label>
             <input v-model="registerForm.nickname" type="text" required placeholder="取个好听的名字"
@@ -138,15 +138,15 @@ const resetResult = ref('')
 const resetSuccess = ref(false)
 
 const handlePasswordReset = () => {
-  if (!resetEmail.value.trim()) { resetResult = '请输入邮箱'; resetSuccess.value = false; return }
+  if (!resetEmail.value.trim()) { resetResult.value = '请输入邮箱'; resetSuccess.value = false; return }
   resetLoading.value = true
-  resetResult = ''
+  resetResult.value = ''
   authApi.requestPasswordReset({ email: resetEmail.value.trim() }).then(res => {
     resetSuccess.value = true
-    resetResult = res.data.message || '申请已提交'
+    resetResult.value = res.data.message || '申请已提交'
   }).catch(err => {
     resetSuccess.value = false
-    resetResult = err._message || '提交失败'
+    resetResult.value = err._message || '提交失败'
   }).finally(() => { resetLoading.value = false })
 }
 
