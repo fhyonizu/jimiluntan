@@ -2,47 +2,19 @@
 version: "3.8"
 
 services:
-  db:
-    image: mysql:8.4
-    container_name: jimiluntan-db
-    restart: unless-stopped
-    environment:
-      MYSQL_DATABASE: ${DB_NAME:-jimiluntan}
-      MYSQL_USER: ${DB_USER:-jimiluntan}
-      MYSQL_PASSWORD: ${DB_PASSWORD:-jimiluntan_password}
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root_password_change_me}
-    command:
-      - --character-set-server=utf8mb4
-      - --collation-server=utf8mb4_unicode_ci
-    volumes:
-      - mysql-data:/var/lib/mysql
-    healthcheck:
-      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u$${MYSQL_USER} -p$${MYSQL_PASSWORD} --silent"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-
   web:
     build: .
     container_name: jimiluntan
     restart: unless-stopped
-    depends_on:
-      db:
-        condition: service_healthy
     ports:
-      - "${HOST_PORT:-80}:80"
+      - "${HOST_PORT:-8080}:80"
     volumes:
-      # 持久化数据（数据库 + 上传文件）
+      # 持久化上传文件
       - app-uploads:/app/backend/app/static/uploads
       # git 配置（升级操作需要）
       - ${HOME}/.gitconfig:/root/.gitconfig:ro
     environment:
-      - DB_HOST=db
-      - DB_PORT=3306
-      - DB_NAME=${DB_NAME:-jimiluntan}
-      - DB_USER=${DB_USER:-jimiluntan}
-      - DB_PASSWORD=${DB_PASSWORD:-jimiluntan_password}
-      - DATABASE_URL=${DATABASE_URL:-}
+      - DATABASE_URL=${DATABASE_URL}
       - SECRET_KEY=${SECRET_KEY}
       - JWT_SECRET_KEY=${JWT_SECRET_KEY}
       - FLASK_DEBUG=0
@@ -56,5 +28,4 @@ services:
       retries: 3
 
 volumes:
-  mysql-data:
   app-uploads:
