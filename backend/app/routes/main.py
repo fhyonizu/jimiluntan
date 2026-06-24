@@ -5,8 +5,9 @@ import random
 import requests as http_requests
 from flask import Blueprint, jsonify, request, current_app
 from flask_jwt_extended import jwt_required, get_jwt_identity
+from sqlalchemy import inspect, text
 from ..models import Post, User, Category
-from ..extensions import cache
+from ..extensions import cache, db
 from datetime import datetime, timedelta, timezone
 
 main_bp = Blueprint('main', __name__)
@@ -25,6 +26,43 @@ def allowed_file(filename: str) -> bool:
         return False
     ext = filename.rsplit('.', 1)[1].lower()
     return ext in ALLOWED_EXTENSIONS and EXT_REGEX.match(ext)
+
+
+@main_bp.route('/health', methods=['GET'])
+def health_check():
+    required_tables = {'users', 'posts', 'categories'}
+    checks = {
+        'app': 'ok',
+        'database': 'unknown',
+        'tables': 'unknown',
+    }
+
+    try:
+        db.session.execute(text('SELECT 1'))
+        checks['database'] = 'ok'
+
+        existing_tables = set(inspect(db.engine).get_table_names())
+        missing_tables = sorted(required_tables - existing_tables)
+        if missing_tables:
+            checks['tables'] = 'missing'
+            return jsonify({
+                'code': 503,
+                'status': 'unhealthy',
+                'checks': checks,
+                'missing_tables': missing_tables,
+            }), 503
+
+        checks['tables'] = 'ok'
+        return jsonify({'code': 200, 'status': 'ok', 'checks': checks}), 200
+    except Exception as e:
+        current_app.logger.warning('健康检查失败: %s', e)
+        checks['database'] = 'error'
+        return jsonify({
+            'code': 503,
+            'status': 'unhealthy',
+            'checks': checks,
+            'error': type(e).__name__,
+        }), 503
 
 
 # ==========================================

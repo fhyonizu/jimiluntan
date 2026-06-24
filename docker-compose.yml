@@ -22,7 +22,7 @@ services:
       - GIPHY_API_KEY=${GIPHY_API_KEY}
       - TENOR_API_KEY=${TENOR_API_KEY}
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:80/api/stats"]
+      test: ["CMD", "curl", "-f", "http://localhost:80/api/health"]
       interval: 30s
       timeout: 5s
       retries: 3
